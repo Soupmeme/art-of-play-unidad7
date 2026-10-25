@@ -33,6 +33,8 @@ describe('physics scaffold (real Rapier in Node)', () => {
   it('drops a body onto the table and it comes to rest at y = 0', async () => {
     const rapier = await initRapier();
     const physics = createPhysics(rapier);
+    const table = physics.world.createRigidBody(rapier.RigidBodyDesc.fixed().setTranslation(0, -0.5, 0));
+    physics.world.createCollider(rapier.ColliderDesc.cuboid(10, 0.5, 10), table);
     const body = physics.world.createRigidBody(rapier.RigidBodyDesc.dynamic().setTranslation(0, 2, -5));
     physics.world.createCollider(rapier.ColliderDesc.cuboid(0.5, 0.05, 0.5), body);
 

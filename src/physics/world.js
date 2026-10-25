@@ -17,11 +17,6 @@ export function createPhysics(rapier, { gravity = WORLD.gravity, step = WORLD.ph
   const world = new rapier.World(gravity);
   world.timestep = step;
   const eventQueue = new rapier.EventQueue(true);
-
-  // The table top: an infinite-feeling static slab whose upper face is y = 0.
-  const tableBody = world.createRigidBody(rapier.RigidBodyDesc.fixed().setTranslation(0, -0.5, -6));
-  world.createCollider(rapier.ColliderDesc.cuboid(20, 0.5, 20), tableBody);
-
   return { rapier, world, eventQueue, step, stepCount: 0 };
 }
 
@@ -30,13 +25,14 @@ export function createPhysics(rapier, { gravity = WORLD.gravity, step = WORLD.ph
 export function createStepper(physics, { maxSteps = WORLD.maxStepsPerFrame } = {}) {
   let accumulator = 0;
 
-  return function advance(frameSeconds, onStep) {
+  return function advance(frameSeconds, { beforeStep, afterStep } = {}) {
     accumulator += frameSeconds;
     let steps = 0;
     while (accumulator >= physics.step && steps < maxSteps) {
+      beforeStep?.(physics.step);
       physics.world.step(physics.eventQueue);
       physics.stepCount++;
-      onStep?.(physics);
+      afterStep?.(physics.step);
       accumulator -= physics.step;
       steps++;
     }
