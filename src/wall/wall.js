@@ -1,36 +1,23 @@
-// The wall: rows of letter-bricks typeset from the phrase, like lines of
-// movable type. Layout is pure data; bodies are created separately.
+// The wall: a grid of bricks. On screen it is one solid slab carrying the type
+// animation; in physics each brick is its own body, so the decay scheduler
+// can later release them one at a time. Layout is pure data.
 
-import { PHRASE } from '../letters/letters.js';
-
-// Returns one brick per letter: { index, row, char, x, y, z, w, h, d } with
-// (x, y, z) the brick centre. Each row starts further into the phrase, which
-// staggers the joints like a running bond.
-export function layoutWall({ rows, rowHeight, width, z, depth, rowStartStep, advance }) {
+// Returns one brick per cell: { index, col, row, x, y, z, w, h, d }, with
+// (x, y, z) the brick centre. The wall is centred on x = 0 and stands on y = 0.
+export function layoutWall({ cols, rows, brickWidth, brickHeight, z, depth }) {
   const bricks = [];
+  const left = (-cols * brickWidth) / 2;
   for (let row = 0; row < rows; row++) {
-    const rowBricks = [];
-    let cursor = 0;
-    let k = (row * rowStartStep) % PHRASE.length;
-    for (;;) {
-      const char = PHRASE[k % PHRASE.length];
-      const w = advance(char);
-      if (cursor + w > width) break;
-      rowBricks.push({ char, left: cursor, w });
-      cursor += w;
-      k++;
-    }
-    const offset = -cursor / 2;
-    for (const b of rowBricks) {
+    for (let col = 0; col < cols; col++) {
       bricks.push({
         index: bricks.length,
+        col,
         row,
-        char: b.char,
-        x: offset + b.left + b.w / 2,
-        y: row * rowHeight + rowHeight / 2,
+        x: left + (col + 0.5) * brickWidth,
+        y: (row + 0.5) * brickHeight,
         z: z - depth / 2,
-        w: b.w,
-        h: rowHeight,
+        w: brickWidth,
+        h: brickHeight,
         d: depth,
       });
     }
@@ -38,8 +25,7 @@ export function layoutWall({ rows, rowHeight, width, z, depth, rowStartStep, adv
   return bricks;
 }
 
-// Each brick is its own fixed rigid body (so the decay scheduler can later
-// release one at a time) with a box collider: an approximation of the letter.
+// Each brick is a fixed rigid body with a box collider.
 export function createBrickBodies(physics, bricks, { friction, restitution }) {
   const { rapier, world } = physics;
   const gap = 0.002;

@@ -13,8 +13,10 @@ export const WORLD = {
 export const CAMERA = {
   fov: 50, // vertical, degrees, at 16:9 and wider
   minHorizontalHalfTan: 0.83, // narrower windows widen the vertical fov to keep this
-  position: { x: 0, y: 1.5, z: 0 },
-  lookAt: { x: 0, y: 1.0, z: -12 },
+  // High enough that letters lying on the table are seen from above, not edge-on,
+  // and the far table appears above the fan on screen, not behind it.
+  position: { x: 0, y: 3.2, z: 0 },
+  lookAt: { x: 0, y: 0.6, z: -12 },
   near: 0.05,
   far: 100,
 };
@@ -34,32 +36,54 @@ export const CARD = {
 export const AIR = { coefficient: 0.015 };
 
 export const ROOM = {
-  frontZ: -4.35, // invisible glass between the camera and the play area
+  frontZ: -4.3, // invisible glass between the camera and the play area
   backZ: -14,
   height: 8,
   // Side boundary: from (±nearX, frontZ) to (±farX, wall.z), then straight back.
   nearX: 3.9, // wide enough that the fan's outer letters start inside the room
   farX: 6.4,
-  railCapHeight: 0.24,
+  laneHeight: 0.22, // the low side lanes drawn along the side glass
+  laneWidth: 0.12,
   tableFriction: 0.6,
   tableRestitution: 0.2,
 };
 
+// The wall is one solid slab on screen, backed by a grid of invisible brick
+// colliders (so the decay scheduler can later release them one by one).
 export const WALL = {
   z: -12, // front face
   depth: 0.3,
+  cols: 20,
   rows: 9,
-  rowHeight: 0.55,
-  capHeight: 0.46,
-  width: 12, // rows are filled up to this width, then centred
-  rowStartStep: 4, // each row starts 4 letters further into the phrase (stagger)
+  brickWidth: 0.6,
+  brickHeight: 0.55,
   friction: 0.6,
   restitution: 0.2,
 };
 
+// The type animation on the wall and side lanes: a grid of character cells,
+// each showing a letter of the phrase. On the wall, a large ART OF PLAY made
+// of those cells scrolls sideways in whole-cell steps, with rows that glitch
+// out of line now and then.
+export const ASCII = {
+  cellsPerBrick: { x: 5, y: 4 }, // wall cells: 100 x 36, aligned with the bricks
+  scroll: 7, // cells per second
+  jag: 4, // largest row glitch, in cells
+  jagRate: 1.6, // glitch changes per second
+  jagShare: 0.3, // share of rows out of line at any moment
+  bannerHeight: 0.62, // big letters, as a share of the wall height
+  bannerCenter: 0.6, // raised a little so the fan does not hide the banner
+  dim: 0.13, // background cell brightness
+  flicker: 0.04, // share of background cells lit at any moment
+  glow: 0.35, // emissive strength of lit cells
+  laneScroll: 5, // side lanes, cells per second toward the wall
+  laneCell: 0.11,
+};
+
 export const FAN = {
-  center: { x: 0, y: 0.95, z: -5.2 },
+  center: { x: 0, y: 0.58, z: -4.85 },
   radius: 10, // arc radius of the hand; larger is flatter
+  sag: 0.35, // how much the outer cards drop along the arc (1 = a true circle)
   overlap: 0.64, // fraction of the mean advance between neighbours
   wordGap: 0.45,
   layerStep: 0.04, // later cards sit slightly in front, like a held hand
@@ -69,7 +93,7 @@ export const FAN = {
 };
 
 export const HOLD = {
-  planeZ: -4.6, // held letters ride on this plane, between the glass and the fan
+  planeZ: -4.5, // held letters ride on this plane, between the glass and the fan
   minY: 0.6,
   maxY: 3.2,
   sideInset: 0.6,
@@ -105,6 +129,7 @@ export const PALETTE = {
   felt: 0x0f1a16,
   ivory: 0xefe6d2,
   oxblood: 0x6e1a1f,
-  brickInk: 0x33433b,
+  wall: 0x6b1a20, // solid oxblood slab, set off from the green felt
+  wallInk: 0xf2c9a7, // lit type cells on the wall and lanes
   glow: 0xffb347,
 };

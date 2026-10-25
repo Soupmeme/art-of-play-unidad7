@@ -3,6 +3,7 @@ import { pointerVelocity, ballisticElevation, planThrow, clampAim } from '../src
 import { letterForm, glyphContours, pointInGlyph, rasterBoxes, advanceWidth } from '../src/letters/glyphs.js';
 import { fanLayout } from '../src/letters/fan.js';
 import { layoutWall } from '../src/wall/wall.js';
+import { nearestOnScreen } from '../src/input/picking.js';
 import { PHRASE, createLetters, wordStarts, STATUS } from '../src/letters/letters.js';
 import { THROW, FAN, WALL, CARD } from '../src/config.js';
 
@@ -131,25 +132,44 @@ describe('fan layout', () => {
 });
 
 describe('wall layout', () => {
-  const bricks = layoutWall({ ...WALL, advance: (c) => advanceWidth(c, WALL.capHeight) });
+  const bricks = layoutWall(WALL);
 
   it('has a brick count inside the brief range (120 to 300)', () => {
+    expect(bricks.length).toBe(WALL.cols * WALL.rows);
     expect(bricks.length).toBeGreaterThanOrEqual(120);
     expect(bricks.length).toBeLessThanOrEqual(300);
   });
 
-  it('keeps every row within the wall width and bricks from overlapping', () => {
-    for (let row = 0; row < WALL.rows; row++) {
-      const r = bricks.filter((b) => b.row === row).sort((a, b) => a.x - b.x);
-      expect(r[0].x - r[0].w / 2).toBeGreaterThanOrEqual(-WALL.width / 2 - 1e-9);
-      for (let i = 1; i < r.length; i++) {
-        expect(r[i].x - r[i].w / 2).toBeGreaterThanOrEqual(r[i - 1].x + r[i - 1].w / 2 - 1e-9);
-      }
-    }
+  it('tiles the wall face exactly: centred, standing on the table, no gaps or overlaps', () => {
+    const width = WALL.cols * WALL.brickWidth;
+    const height = WALL.rows * WALL.brickHeight;
+    const area = bricks.reduce((sum, b) => sum + b.w * b.h, 0);
+    expect(area).toBeCloseTo(width * height);
+    expect(Math.min(...bricks.map((b) => b.x - b.w / 2))).toBeCloseTo(-width / 2);
+    expect(Math.max(...bricks.map((b) => b.x + b.w / 2))).toBeCloseTo(width / 2);
+    expect(Math.min(...bricks.map((b) => b.y - b.h / 2))).toBeCloseTo(0);
   });
 
-  it('uses only letters of the phrase', () => {
-    expect(bricks.every((b) => PHRASE.includes(b.char))).toBe(true);
+  it('puts the brick front faces on the wall plane', () => {
+    expect(bricks.every((b) => Math.abs(b.z + b.d / 2 - WALL.z) < 1e-9)).toBe(true);
+  });
+});
+
+describe('screen-space picking fallback', () => {
+  const a = { id: 'a' };
+  const b = { id: 'b' };
+  const candidates = [
+    { letter: a, points: [{ x: 100, y: 100 }, { x: 120, y: 100 }] },
+    { letter: b, points: [{ x: 160, y: 100 }] },
+  ];
+
+  it('picks the letter with the closest point within reach', () => {
+    expect(nearestOnScreen(candidates, { x: 135, y: 102 }, 30)).toBe(a);
+    expect(nearestOnScreen(candidates, { x: 150, y: 100 }, 30)).toBe(b);
+  });
+
+  it('picks nothing when every letter is out of reach', () => {
+    expect(nearestOnScreen(candidates, { x: 400, y: 400 }, 30)).toBeNull();
   });
 });
 

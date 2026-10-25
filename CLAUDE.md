@@ -14,6 +14,10 @@ The full brief is `docs/unidad7-brief-v2.md`. Read it before any non-trivial cha
 7. Never invent playtest results, predictions marked as verified, or self-evaluation scores. Those belong to Kiwi.
 8. No em dashes in any prose (docs, comments, commit messages, logbook). Use commas, colons or parentheses.
 
+## Amendments by Kiwi (these override the rules above where they differ)
+
+- 2026-10-25, rule 1, wall and side lanes: the wall and the side lanes are solid single-colour surfaces (oxblood, set off from the green felt), not letter-bricks. Their only marking is a type animation made of the phrase's letters: a grid of character cells (text-mode, ASCII style) in which a large ART OF PLAY scrolls sideways in whole-cell steps with jagged row glitches. Physics still uses a grid of invisible brick colliders behind the wall. The letter-cards stay die-cut letterforms.
+
 ## Working notes
 
 - Log every non-trivial decision in `DECISIONS.md` (date, decision, alternatives, why). Escalations go in `ESCALATIONS.md`.

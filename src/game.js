@@ -2,7 +2,7 @@
 // Rendering and input live elsewhere; this module only touches bodies and data.
 
 import { STATUS, HOLDABLE, createLetters, wordStarts } from './letters/letters.js';
-import { letterForm, advanceWidth } from './letters/glyphs.js';
+import { letterForm } from './letters/glyphs.js';
 import { fanLayout } from './letters/fan.js';
 import { layoutWall, createBrickBodies } from './wall/wall.js';
 import { createRoom } from './physics/room.js';
@@ -40,14 +40,15 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     overlap: FAN.overlap,
     wordGap: FAN.wordGap,
     layerStep: FAN.layerStep,
+    sag: FAN.sag,
   });
 
-  const bricks = layoutWall({ ...WALL, advance: (c) => advanceWidth(c, WALL.capHeight) });
+  const bricks = layoutWall(WALL);
   const brickBodies = createBrickBodies(physics, bricks, WALL);
   const wall = {
     z: WALL.z,
-    top: WALL.rows * WALL.rowHeight,
-    halfWidth: Math.max(...bricks.map((b) => Math.abs(b.x) + b.w / 2)),
+    top: WALL.rows * WALL.brickHeight,
+    halfWidth: (WALL.cols * WALL.brickWidth) / 2,
   };
   const room = createRoom(physics, ROOM, WALL.z);
 

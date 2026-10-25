@@ -134,3 +134,25 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 ### Dev tooling
 - **Decision:** `?dev` shows the tuning panel (throw mapping, hold, card and air, return letters to fan, show colliders) and a readout of every letter's status and the last throw's values. `aop.flick(...)` in the console drives the real input path with synthetic pointer events. The headless scenario runner (`src/dev/scenario.js`) is exercised by `test/throws.test.js`.
 - **Note:** synthetic pointers cannot be captured, so pointer capture is wrapped in try/catch; real pointers are unaffected.
+
+## 2026-10-25, M1 revision after Kiwi's first look
+
+### Wall and side lanes become solid surfaces with a type animation (Kiwi's direction, amends rule 1)
+- **Decision:** the wall is one oxblood slab (12 x 4.95 x 0.3) and the side lanes are low oxblood bars (0.22 high, 0.12 wide). Their faces carry a type animation, a lit standard material with a patched fragment shader (`src/render/asciiMaterial.js`):
+  - the surface is a grid of character cells (wall: 100 x 36, exactly 5 x 4 cells per brick), each showing one letter of ARTOFPLAY from a glyph atlas drawn from the Cinzel outlines;
+  - content moves in whole-cell steps (text-mode feel): 7 cells/s sideways on the wall, 5 cells/s toward the wall on the lanes;
+  - at 1.6 changes per second, about 30% of rows jump out of line by up to 4 cells (the jagged glitch);
+  - a large ART OF PLAY (62% of the wall height, centred at 60% so the fan does not hide it) is sampled once per cell from a banner mask set with the font's advances and kerning, so the big letters are built out of the small ones; cells outside it are dim, with 4% flickering.
+- **Alternatives:** keep the letter-brick wall (Kiwi found it on the nose); a pure unlit shader (would lose the letters' shadows on the wall).
+- **Physics:** unchanged in kind. The wall is still a grid of fixed box colliders, now uniform: 20 x 9 bricks of 0.6 x 0.55 (**180 bricks**, was 222 of varying width). The visible slab and the colliders cover the same volume.
+- **Consequence for M4 (wall decay), my default unless Kiwi says otherwise:** a released brick will cut its 5 x 4 cell block out of the slab (the shader masks it) and fall as a box carrying the same animated type, so the crumble reads as cells dropping out of the text.
+- **Rule 1:** amendment recorded in CLAUDE.md; the letter-cards remain die-cut letterforms.
+
+### Camera raised, fan lowered (fixes hard-to-grab flat letters)
+- **Observation (Kiwi):** letters lying flat far from the hand were hard to grab; from a camera 1.5 high they were seen almost edge-on. Also found while testing: on screen the fan sat over the far end of the table, so it hid letters lying near the wall, and a press there grabbed a fan letter instead.
+- **Decision:** camera at (0, 3.2, 0) looking at (0, 0.6, -12). The fan moves to (0, 0.58, -4.85) with its arc sag reduced to 0.35, so it sits at the bottom of the screen (about 72% to 91% of the height) and the table from 8 units out appears above it. Hold plane at z = -4.5, front glass at z = -4.3 (where the table first comes into view).
+- **Measured:** a flat letter near the wall now spans about 20 px on a 720 px tall view. Throw accuracy unchanged (full-power hits within 0.05 of the aim, `docs/reports/throws.md`).
+
+### Picking fallback
+- **Decision:** when the pointer ray misses every letter, the nearest holdable letter on screen is picked if any of its collider box centres, projected, is within 0.045 screen heights of the pointer (`src/input/picking.js`). Ray hits always win, so a letter in front still takes precedence.
+- **Checked in the browser:** pressing 20 px above a flat letter near the wall grabs it.

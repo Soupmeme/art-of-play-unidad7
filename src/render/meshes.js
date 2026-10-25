@@ -1,10 +1,11 @@
-// Meshes for letters, wall bricks and rails. Every visible object here is a
-// letterform of the phrase (rule 1). Meshes copy body transforms each frame.
+// Meshes for the letters, the wall and the side lanes. The letter-cards are
+// die-cut letterforms; the wall and lanes are solid surfaces whose only
+// marking is the type animation made of the phrase's letters.
 
 import * as THREE from 'three';
-import { letterForm } from '../letters/glyphs.js';
-import { PHRASE } from '../letters/letters.js';
-import { WALL, ROOM, PALETTE } from '../config.js';
+import { createGlyphAtlas, createBannerMask } from './typeTextures.js';
+import { createAsciiMaterial } from './asciiMaterial.js';
+import { WALL, ROOM, ASCII, PALETTE } from '../config.js';
 
 export function createLetterMeshes(scene, game) {
   // Extrude groups: 0 = front and back faces, 1 = the cut edge.
@@ -28,76 +29,84 @@ export function syncLetterMeshes(meshes, game) {
   });
 }
 
-// One InstancedMesh per distinct letter. items: { char, position, quaternion }.
-function createTypeInstances(scene, items, { capHeight, depth, material }) {
-  const byChar = new Map();
-  for (const item of items) {
-    if (!byChar.has(item.char)) byChar.set(item.char, []);
-    byChar.get(item.char).push(item);
-  }
-  const matrix = new THREE.Matrix4();
-  const one = new THREE.Vector3(1, 1, 1);
-  const meshes = [];
-  for (const [char, list] of byChar) {
-    const { geometry } = letterForm(char, { capHeight, depth, colliderCell: 0 });
-    const mesh = new THREE.InstancedMesh(geometry, material, list.length);
-    list.forEach((item, k) => {
-      mesh.setMatrixAt(k, matrix.compose(item.position, item.quaternion, one));
-      item.instance = { mesh, index: k };
-    });
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
-    meshes.push(mesh);
-  }
-  return meshes;
-}
+// The wall slab and the two side lanes, all carrying the type animation.
+// Returns update(seconds) to advance the animation clock.
+export function createTypeSurfaces(scene, game) {
+  const atlas = createGlyphAtlas();
+  const banner = createBannerMask();
+  const animated = [];
 
-export function createWallMeshes(scene, game) {
-  const material = new THREE.MeshStandardMaterial({ color: PALETTE.brickInk, roughness: 0.85 });
-  const identity = new THREE.Quaternion();
-  const items = game.bricks.map((b) => ({
-    char: b.char,
-    position: new THREE.Vector3(b.x, b.y, b.z),
-    quaternion: identity,
-  }));
-  return createTypeInstances(scene, items, { capHeight: WALL.capHeight, depth: WALL.depth, material });
-}
+  // Wall: one slab covering the brick grid. Only the front face is animated;
+  // sides, top and back are the plain wall colour.
+  const width = WALL.cols * WALL.brickWidth;
+  const height = WALL.rows * WALL.brickHeight;
+  const front = createAsciiMaterial({
+    atlas,
+    grid: { x: WALL.cols * ASCII.cellsPerBrick.x, y: WALL.rows * ASCII.cellsPerBrick.y },
+    aspect: width / height,
+    mask: banner.texture,
+    maskAspect: banner.aspect,
+    base: PALETTE.wall,
+    ink: PALETTE.wallInk,
+    params: ASCII,
+  });
+  animated.push(front.uniforms);
+  const plain = new THREE.MeshStandardMaterial({ color: PALETTE.wall, roughness: 0.85 });
+  // BoxGeometry face order: +x, -x, +y, -y, +z (front, toward the camera), -z.
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, WALL.depth), [
+    plain,
+    plain,
+    plain,
+    plain,
+    front.material,
+    plain,
+  ]);
+  wall.position.set(0, height / 2, WALL.z - WALL.depth / 2);
+  wall.castShadow = true;
+  wall.receiveShadow = true;
+  scene.add(wall);
 
-// Low rows of letters along the two side boundaries, standing and facing inward.
-export function createRailMeshes(scene, game) {
-  const material = new THREE.MeshStandardMaterial({ color: PALETTE.brickInk, roughness: 0.85 });
+  // Side lanes: low bars along the side glass, type streaming toward the wall.
   const outline = game.room.outline;
   const sides = [
     [outline[0], outline[1]],
     [outline[5], outline[4]],
   ];
-  const items = [];
-  const capHeight = ROOM.railCapHeight;
   for (const [a, b] of sides) {
     const dx = b.x - a.x;
     const dz = b.z - a.z;
     const length = Math.hypot(dx, dz);
-    const inward = Math.sign(-a.x) || 1;
-    const nx = (-dz / length) * inward;
-    const nz = (dx / length) * inward;
-    const quaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(nx, nz));
-    let s = 0.2;
-    let k = 0;
-    while (s < length - 0.2) {
-      const char = PHRASE[k % PHRASE.length];
-      const w = letterForm(char, { capHeight, depth: 0.08, colliderCell: 0 }).advance;
-      const t = (s + w / 2) / length;
-      items.push({
-        char,
-        position: new THREE.Vector3(a.x + dx * t, capHeight / 2, a.z + dz * t),
-        quaternion,
-      });
-      s += w;
-      k++;
+    // Unit normal of the segment that points into the room (toward x = 0).
+    let nx = -dz / length;
+    let nz = dx / length;
+    if (Math.sign(nx) !== Math.sign(-a.x)) {
+      nx = -nx;
+      nz = -nz;
     }
+    const lane = createAsciiMaterial({
+      atlas,
+      grid: { x: Math.round(length / ASCII.laneCell), y: 2 },
+      base: PALETTE.wall,
+      ink: PALETTE.wallInk,
+      params: ASCII,
+      flat: 0.7,
+      scroll: -ASCII.laneScroll,
+    });
+    animated.push(lane.uniforms);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(length, ROOM.laneHeight, ROOM.laneWidth), lane.material);
+    // Local x runs from the front end toward the wall.
+    mesh.rotation.y = Math.atan2(-dz, dx);
+    const half = ROOM.laneWidth / 2; // sit just inside the glass
+    mesh.position.set((a.x + b.x) / 2 + nx * half, ROOM.laneHeight / 2, (a.z + b.z) / 2 + nz * half);
+    mesh.receiveShadow = true;
+    scene.add(mesh);
   }
-  return createTypeInstances(scene, items, { capHeight, depth: 0.08, material });
+
+  return {
+    update(seconds) {
+      for (const u of animated) u.uTime.value = seconds;
+    },
+  };
 }
 
 // Dev only: Rapier's collider wireframes.

@@ -4,9 +4,11 @@
 import * as THREE from 'three';
 import { HOLDABLE } from '../letters/letters.js';
 import { pointerVelocity, planThrow, clampAim } from './throwMapping.js';
+import { nearestOnScreen } from './picking.js';
 import { HOLD, THROW, WORLD } from '../config.js';
 
 const SAMPLE_HISTORY_MS = 250;
+const PICK_REACH = 0.045; // screen heights: how near the pointer a missed letter may be
 
 export function createHoldThrow({ canvas, camera, game, meshes }) {
   const raycaster = new THREE.Raycaster();
@@ -14,6 +16,8 @@ export function createHoldThrow({ canvas, camera, game, meshes }) {
   const holdPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -HOLD.planeZ);
   const wallPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -game.wall.z);
   const hit = new THREE.Vector3();
+  const projected = new THREE.Vector3();
+  let pixel = { x: 0, y: 0, width: 1, height: 1 };
   let samples = [];
   let pointerId = null;
   let lastInputTime = 0;
@@ -23,18 +27,31 @@ export function createHoldThrow({ canvas, camera, game, meshes }) {
     const rect = canvas.getBoundingClientRect();
     const px = event.clientX - rect.left;
     const py = event.clientY - rect.top;
+    pixel = { x: px, y: py, width: rect.width, height: rect.height };
     ndc.set((px / rect.width) * 2 - 1, -(py / rect.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     return { t: event.timeStamp, x: px / rect.height, y: py / rect.height };
   }
 
+  // A ray hit on the letter's mesh first; failing that, the nearest holdable
+  // letter on screen within reach (for letters lying flat far away).
   function letterUnderPointer() {
     const hits = raycaster.intersectObjects(meshes, false);
     for (const h of hits) {
       const letter = game.letters[h.object.userData.letterId];
       if (HOLDABLE.has(letter.status)) return letter;
     }
-    return null;
+    const candidates = game.letters
+      .filter((letter) => HOLDABLE.has(letter.status))
+      .map((letter) => {
+        const body = game.bodies[letter.id];
+        const points = game.forms[letter.id].boxes.map((b) => {
+          projected.set(b.x, b.y, 0).applyQuaternion(body.rotation()).add(body.translation()).project(camera);
+          return { x: ((projected.x + 1) / 2) * pixel.width, y: ((1 - projected.y) / 2) * pixel.height };
+        });
+        return { letter, points };
+      });
+    return nearestOnScreen(candidates, pixel, PICK_REACH * pixel.height);
   }
 
   function aimHold() {

@@ -24,3 +24,8 @@ Items that could change the concept or the grade (brief, section 3). Status: ope
 - quietSeconds at 25 s may wipe progress for a player who pauses to think.
 - Ripple restitution: O and Y may bounce out of a pull too fast to be captured.
 - Discoverability: whether a fresh player brings a correct pair close enough to see a warm tremble within about two minutes.
+
+## E6. Wall and side lanes not built from letter-bricks
+- **Raised:** 2026-10-25 by Kiwi, who found the letter-brick wall and rails too literal.
+- **Resolution:** Kiwi directed solid oxblood surfaces with an animated text-mode type pattern of ART OF PLAY. Amendment to rule 1 recorded in CLAUDE.md; details and the M4 decay consequence in DECISIONS.md.
+- **Status:** resolved.

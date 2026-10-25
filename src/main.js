@@ -3,13 +3,7 @@
 import { initRapier, createPhysics, createStepper } from './physics/world.js';
 import { createGame } from './game.js';
 import { createRenderer } from './render/renderer.js';
-import {
-  createLetterMeshes,
-  syncLetterMeshes,
-  createWallMeshes,
-  createRailMeshes,
-  createColliderDebug,
-} from './render/meshes.js';
+import { createLetterMeshes, syncLetterMeshes, createTypeSurfaces, createColliderDebug } from './render/meshes.js';
 import { createHoldThrow } from './input/holdThrow.js';
 import { isDevMode, createDevTools } from './dev/devTools.js';
 
@@ -22,8 +16,7 @@ async function main() {
   const canvas = document.getElementById('stage');
   const view = createRenderer(canvas);
   const letterMeshes = createLetterMeshes(view.scene, game);
-  createWallMeshes(view.scene, game);
-  createRailMeshes(view.scene, game);
+  const typeSurfaces = createTypeSurfaces(view.scene, game);
   const colliderDebug = createColliderDebug(view.scene);
   createHoldThrow({ canvas, camera: view.camera, game, meshes: letterMeshes });
 
@@ -46,6 +39,7 @@ async function main() {
     last = now;
     advance(frameSeconds, hooks);
     syncLetterMeshes(letterMeshes, game);
+    typeSurfaces.update(now / 1000);
     colliderDebug.update(physics.world);
     view.render();
     if (dev) dev.setInfo(dev.describe());

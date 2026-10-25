@@ -2,7 +2,7 @@
 // Pure layout, no physics. Letters are spaced along an arc by their own
 // advance widths (times an overlap factor), with an extra gap between words.
 
-export function fanLayout({ advances, wordStarts, center, radius, overlap, wordGap, layerStep }) {
+export function fanLayout({ advances, wordStarts, center, radius, overlap, wordGap, layerStep, sag = 1 }) {
   // Arc length position of each letter centre.
   const s = [0];
   for (let i = 1; i < advances.length; i++) {
@@ -15,7 +15,7 @@ export function fanLayout({ advances, wordStarts, center, radius, overlap, wordG
     const theta = (arc - mid) / radius; // negative on the left
     return {
       x: center.x + radius * Math.sin(theta),
-      y: center.y - radius * (1 - Math.cos(theta)),
+      y: center.y - sag * radius * (1 - Math.cos(theta)),
       z: center.z + i * layerStep,
       angle: -theta, // rotation about z: left cards lean left, right cards lean right
     };
