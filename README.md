@@ -4,7 +4,7 @@ Student concept for Simulacion, Unidad 7 (Universidad Pontificia Bolivariana). *
 
 The nine letters of ART OF PLAY are thrown letter-cards. Hold a letter with the mouse, flick, release, and find out what each one does.
 
-Work in progress: milestone M1 (honest physics: table, wall, fan, hold and throw). See `docs/unidad7-brief-v2.md` for the full brief.
+Work in progress: milestone M2 (letter effects: Stick, Curve, Ripple). See `docs/unidad7-brief-v2.md` for the full brief.
 
 ## Run
 

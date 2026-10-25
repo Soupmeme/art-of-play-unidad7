@@ -49,6 +49,7 @@ export function createTypeSurfaces(scene, game) {
     base: PALETTE.wall,
     ink: PALETTE.wallInk,
     params: ASCII,
+    size: { x: width, y: height },
   });
   animated.push(front.uniforms);
   const plain = new THREE.MeshStandardMaterial({ color: PALETTE.wall, roughness: 0.85 });
@@ -102,9 +103,21 @@ export function createTypeSurfaces(scene, game) {
     scene.add(mesh);
   }
 
+  // New wall impacts from the game become pulses in the wall's type, stamped
+  // with the render clock. The four most recent are kept.
+  const PULSE_KIND = { stick: 1, ripple: 2, bounce: 3 };
+  let seen = 0;
+  let nextPulse = 0;
+
   return {
     update(seconds) {
       for (const u of animated) u.uTime.value = seconds;
+      for (const impact of game.impacts) {
+        if (impact.seq <= seen) continue;
+        seen = impact.seq;
+        front.uniforms.uPulse.value[nextPulse].set(impact.x + width / 2, impact.y, seconds, PULSE_KIND[impact.kind]);
+        nextPulse = (nextPulse + 1) % 4;
+      }
     },
   };
 }

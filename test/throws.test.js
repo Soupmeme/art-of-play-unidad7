@@ -6,6 +6,7 @@ import { describe, expect, it, afterAll } from 'vitest';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { runThrow } from '../src/dev/scenario.js';
 import { PHRASE } from '../src/letters/letters.js';
+import { FAMILY, familyOf } from '../src/letters/families.js';
 
 const rows = [];
 const fmt = (n) => n.toFixed(2);
@@ -25,14 +26,17 @@ const aims = [
   { x: -2, y: 0.8 },
 ];
 
+// Curve letters (R, P) hook away from the aim by design; their flight is
+// checked in test/effects.test.js instead.
 describe('full-power throws land near the aim point', () => {
   for (let id = 0; id < PHRASE.length; id++) {
     const aim = aims[id % aims.length];
-    it(`${PHRASE[id]} (letter ${id}) aimed at (${aim.x}, ${aim.y})`, async () => {
+    const curve = familyOf(PHRASE[id]) === FAMILY.curve;
+    it(`${PHRASE[id]} (letter ${id}) aimed at (${aim.x}, ${aim.y})${curve ? ', reaches the wall (Curve: hooks)' : ''}`, async () => {
       const r = record(`full power, letter ${id}`, await runThrow({ letterId: id, aim, pointer: FULL }));
       expect(r.plan.kind).toBe('throw');
       expect(r.wallHit).not.toBeNull();
-      expect(Math.hypot(r.wallHit.x - r.plan.target.x, r.wallHit.y - r.plan.target.y)).toBeLessThan(0.4);
+      if (!curve) expect(Math.hypot(r.wallHit.x - r.plan.target.x, r.wallHit.y - r.plan.target.y)).toBeLessThan(0.4);
     });
   }
 });

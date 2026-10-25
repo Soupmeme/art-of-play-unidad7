@@ -118,6 +118,32 @@ export const THROW = {
   aimInset: 0.3, // keeps the aim point inside the wall
 };
 
+// Letter effect rules (brief 5.4). NON-PHYSICAL (4a), layered on real physics.
+export const EFFECTS = {
+  stick: {
+    minSpeed: 11, // units/s at impact; slower letters bounce off like any card
+    approachCone: 40, // degrees between the flight direction and straight into the wall
+    faceCone: 50, // degrees between the letter's face and the wall face
+    bite: 0.012, // how far the embedded letter sinks into the wall face
+  },
+  curve: {
+    gain: 0.09, // sideways acceleration per (rad/s of spin x units/s of speed)
+    biasSpin: -7, // rad/s every Curve throw starts with (clockwise: hooks right)
+  },
+  ripple: {
+    restitution: 0.5, // bounce of O and Y (other letters: CARD.restitution)
+    minSpeed: 3, // units/s at impact to send a ripple
+    radius: 2.5, // reach of the ripple, units
+    strength: 2.0, // velocity change at 1 unit, falls off as 1/d
+    minDistance: 0.4, // caps the kick for letters very close to the impact
+    lift: 0.5, // upward share of the kick
+    cooldown: 0.25, // seconds between ripples from the same letter
+    wallShake: true, // Ripple hits on the wall stress nearby bricks (used by decay, M4)
+    shakeRadius: 1.0,
+    shakeAmount: 0.35,
+  },
+};
+
 export const STATUS_RULES = {
   restSpeed: 0.15,
   restSpin: 0.6,

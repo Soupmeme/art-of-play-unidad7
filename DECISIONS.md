@@ -156,3 +156,37 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 ### Picking fallback
 - **Decision:** when the pointer ray misses every letter, the nearest holdable letter on screen is picked if any of its collider box centres, projected, is within 0.045 screen heights of the pointer (`src/input/picking.js`). Ray hits always win, so a letter in front still takes precedence.
 - **Checked in the browser:** pressing 20 px above a flat letter near the wall grabs it.
+
+## 2026-10-25, M2 (letter effects)
+
+### Family table kept as the brief proposed
+- **Decision:** Stick: A, A, T, F, L. Curve: R, P. Ripple: O, Y. Data in `src/letters/families.js` with a one-line anatomy reason per letter. Each word has a Stick anchor (tested). Families are looked up by letter, so the two As always match (tested).
+
+### Contact detection
+- **Decision:** letter colliders raise Rapier collision events. After each step, the first contact a flying letter starts decides its effect (letters have several box colliders, so later events in the same step are ignored). The impact velocity is the letter's velocity recorded just before the step, because the solver has already changed it by the time events are read.
+
+### Stick
+- **Decision:** embeds when a flying Stick letter touches a brick at 11 units/s or more, within 40 degrees of head-on, with its face within 50 degrees of the wall face. The letter is pressed flat into the wall face (sunk 0.012), keeping its in-plane tilt, and joined to that brick by a fixed joint with contacts between the two disabled. Status becomes `stuck`.
+- **Why 11:** measured full-power impacts are about 12.2 to 12.5 units/s and medium flicks (1.8 screen heights/s) about 10. At 9, every medium throw stuck; at 11, hard throws stick and soft ones bounce, which makes "how hard" part of what the player learns.
+- **Not yet:** "a letter under a correct word pull cannot embed" (lockout mitigation a) needs the word function; it lands in M3.
+
+### Curve
+- **Decision:** while a Curve letter is airborne (released and not yet touching anything), it gets a sideways acceleration along the camera's right axis: 0.09 x spin (about its face normal) x speed. Clockwise spin, as the camera sees it, hooks right.
+- **Decision (added):** a Curve letter leaves the hand with -7 rad/s of built-in spin, so a plain straight flick visibly hooks right (measured: about 1.3 units at the wall). A left flick cancels it (lands within 0.5 of the aim), a right flick doubles it (about 3.2 units).
+- **Alternatives:** spin only from the sideways flick, as M1 had it.
+- **Why:** Kiwi noted the most intuitive throw is a straight upward flick, which has no sideways motion. Without the built-in spin, most players would never see R or P do anything. Justified by anatomy: a lopsided letter leaves the hand spinning. Documented as part of the Curve rule (4a).
+- **On wall contact:** no embed, it bounces like any card ("clings weakly" from the brief not implemented).
+
+### Ripple
+- **Decision:** O and Y have restitution 0.5 with a Max combine rule, so they keep their bounce against anything (other letters use 0.15). On any contact at 3 units/s or more (with a 0.25 s cooldown per letter), every other free letter (flying or on the table) within 2.5 units gets a velocity change away from the impact of 2.0 / max(d, 0.4) units/s, with half of that as lift so flat letters hop. A Ripple hit on the wall adds stress to bricks within 1 unit (0.35 at the centre, linear falloff); the decay scheduler will read it in M4. Letters in the fan, held, stuck or (later) locked are never kicked.
+- **Change:** restitution lowered from 0.65 to 0.5: at 0.65 a Y bounced all the way back to the hand.
+- **Measured:** an O thrown low beside a T lying at the foot of the wall shoves the T 0.53 units; the same throw with F moves it 0.
+
+### The wall answers impacts (visual only)
+- **Decision:** wall impacts become pulses in the wall's type animation (four most recent kept): a Stick hit lights the cells within 0.6 of it, fading over 0.7 s; a Ripple sends a ring outward at 4 units/s for 1.4 s that lights cells and shoves alternate rows sideways; a plain bounce gives a faint 0.3 s flash. Made only of the phrase's letters, never moves anything physical.
+- **Why:** M2's acceptance asks that each effect be distinguishable by someone who does not know the rule. The wall reacting differently to each family gives a second, immediate cue besides the letter's own motion.
+
+### Test and dev support
+- `game.debugPlace` (tests and dev only, never in play) puts a letter at a pose to set up scenarios. The scenario runner takes a `setup(game)` callback and returns the game for inspection.
+- `test/effects.test.js` covers the table, each pure rule, one scripted throw per letter with the rule's expected outcome, soft vs hard Stick, left/straight/right Curve, Ripple nudging vs a control, and Ripple wall stress. It writes `docs/reports/effects.md`.
+- Dev panel: "Letter effects" folder; the readout shows each letter's family initial and the last contact (speed, approach, face, stick or bounce, ripple).

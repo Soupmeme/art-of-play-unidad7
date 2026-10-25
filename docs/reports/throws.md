@@ -5,18 +5,18 @@ Measurements of the current mapping, not playtest results. Coordinates in card h
 
 | run | letter | kind | power | aim (x, y) | wall hit (x, y) | flight s | rest (x, y, z) | status |
 |---|---|---|---|---|---|---|---|---|
-| full power, letter 0 | A | throw | 1.00 | 0.00, 2.50 | -0.03, 2.50 | 0.62 | 1.09, 0.01, -9.16 | onTable |
-| full power, letter 1 | R | throw | 1.00 | -4.00, 3.50 | -4.00, 3.50 | 0.63 | -3.01, 0.10, -8.18 | flying |
-| full power, letter 2 | T | throw | 1.00 | 4.00, 1.20 | 3.98, 1.18 | 0.70 | 4.24, 0.02, -11.14 | flying |
-| full power, letter 3 | O | throw | 1.00 | 2.00, 4.20 | 1.99, 4.18 | 0.68 | 1.19, 0.01, -9.07 | flying |
-| full power, letter 4 | F | throw | 1.00 | -2.00, 0.80 | -1.99, 0.81 | 0.57 | -1.83, 0.01, -10.62 | onTable |
-| full power, letter 5 | P | throw | 1.00 | 0.00, 2.50 | 0.00, 2.51 | 0.58 | -0.02, 0.01, -9.26 | onTable |
-| full power, letter 6 | L | throw | 1.00 | -4.00, 3.50 | -3.98, 3.45 | 0.78 | -5.71, 0.21, -10.76 | onTable |
-| full power, letter 7 | A | throw | 1.00 | 4.00, 1.20 | 3.99, 1.22 | 0.55 | 4.00, 0.01, -10.05 | onTable |
-| full power, letter 8 | Y | throw | 1.00 | 2.00, 4.20 | 2.01, 4.18 | 0.65 | 0.73, 0.02, -8.54 | flying |
-| flick 3.5 H/s | T | throw | 1.00 | 0.00, 3.00 | -0.01, 3.00 | 0.60 | -0.46, 0.01, -9.38 | onTable |
+| full power, letter 0 | A | throw | 1.00 | 0.00, 2.50 | -0.03, 2.50 | 0.62 | 0.02, 2.49, -11.98 | stuck |
+| full power, letter 1 | R | throw | 1.00 | -4.00, 3.50 | -2.66, 3.49 | 0.63 | -3.30, 0.01, -8.59 | onTable |
+| full power, letter 2 | T | throw | 1.00 | 4.00, 1.20 | 3.98, 1.18 | 0.70 | 4.04, 1.15, -11.98 | stuck |
+| full power, letter 3 | O | throw | 1.00 | 2.00, 4.20 | 1.99, 4.18 | 0.68 | 1.28, 0.03, -5.11 | flying |
+| full power, letter 4 | F | throw | 1.00 | -2.00, 0.80 | -1.99, 0.81 | 0.57 | -2.00, 0.81, -11.98 | stuck |
+| full power, letter 5 | P | throw | 1.00 | 0.00, 2.50 | 1.27, 2.63 | 0.58 | 0.62, 0.01, -8.89 | onTable |
+| full power, letter 6 | L | throw | 1.00 | -4.00, 3.50 | -3.98, 3.45 | 0.78 | -4.03, 3.43, -11.98 | stuck |
+| full power, letter 7 | A | throw | 1.00 | 4.00, 1.20 | 3.99, 1.22 | 0.55 | 4.00, 1.21, -11.98 | stuck |
+| full power, letter 8 | Y | throw | 1.00 | 2.00, 4.20 | 2.01, 4.18 | 0.65 | 1.74, 0.02, -6.26 | flying |
+| flick 3.5 H/s | T | throw | 1.00 | 0.00, 3.00 | -0.01, 3.00 | 0.60 | -0.00, 3.00, -12.00 | stuck |
 | flick 1.8 H/s | T | throw | 0.60 | 0.00, 3.00 | -0.00, 1.75 | 0.80 | 0.22, 0.01, -10.40 | onTable |
 | flick 1.0 H/s | T | throw | 0.20 | 0.00, 3.00 | none |  | 0.25, 0.01, -11.17 | onTable |
 | slow release | F | drop | 0.00 |  | none |  | 0.18, 0.01, -5.07 | onTable |
-| flick up-right | T | throw | 1.00 | 0.00, 2.50 | -0.02, 2.69 | 0.58 | 0.03, 0.01, -9.58 | onTable |
-| flick up-left | T | throw | 1.00 | 0.00, 2.50 | -0.02, 2.69 | 0.58 | 0.08, 0.01, -9.58 | onTable |
+| flick up-right | T | throw | 1.00 | 0.00, 2.50 | -0.02, 2.69 | 0.58 | -0.01, 2.69, -11.98 | stuck |
+| flick up-left | T | throw | 1.00 | 0.00, 2.50 | -0.02, 2.69 | 0.58 | -0.01, 2.69, -11.98 | stuck |

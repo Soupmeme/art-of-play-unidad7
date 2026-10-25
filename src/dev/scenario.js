@@ -13,9 +13,10 @@ import { THROW, WORLD, CARD } from '../config.js';
 //   pointer: { vx, vy } in screen heights/s (y down, so an upward flick has vy < 0),
 //   holdAt: { x, y } on the hold plane (default: in front of the letter's fan slot),
 //   seconds: how long to simulate after release,
-//   seed
+//   seed,
+//   setup(game): optional, arranges other letters before the throw
 // }
-export async function runThrow({ letterId, aim, pointer, holdAt, seconds = 3, seed = WORLD.seed, params = THROW }) {
+export async function runThrow({ letterId, aim, pointer, holdAt, seconds = 3, seed = WORLD.seed, params = THROW, setup }) {
   const rapier = await initRapier();
   const physics = createPhysics(rapier);
   const game = createGame(physics, { seed });
@@ -23,6 +24,7 @@ export async function runThrow({ letterId, aim, pointer, holdAt, seconds = 3, se
   const hooks = { beforeStep: game.beforeStep, afterStep: game.afterStep };
   const step = () => advance(physics.step, hooks);
 
+  setup?.(game);
   const letter = game.letters[letterId];
   const body = game.bodies[letterId];
   const slot = game.fan[letterId];
@@ -49,5 +51,16 @@ export async function runThrow({ letterId, aim, pointer, holdAt, seconds = 3, se
     }
   }
   const rest = body.translation();
-  return { letter: letter.char, from, plan, wallHit, flightTime, rest, status: letter.status };
+  return {
+    letter: letter.char,
+    family: letter.family,
+    from,
+    plan,
+    wallHit,
+    flightTime,
+    rest,
+    status: letter.status,
+    lastContact: game.lastContact,
+    game,
+  };
 }

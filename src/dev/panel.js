@@ -2,8 +2,9 @@
 // config objects the game reads every step, so changes apply live.
 
 import GUI from 'three/addons/libs/lil-gui.module.min.js';
-import { THROW, HOLD, AIR, CARD } from '../config.js';
+import { THROW, HOLD, AIR, CARD, EFFECTS } from '../config.js';
 import { STATUS } from '../letters/letters.js';
+import { FAMILY } from '../letters/families.js';
 
 export function createDevPanel({ game, colliderDebug }) {
   const gui = new GUI({ title: 'dev' });
@@ -35,6 +36,26 @@ export function createDevPanel({ game, colliderDebug }) {
   m.add(CARD, 'friction', 0, 1.5, 0.01).onChange((v) => eachLetterCollider((c) => c.setFriction(v)));
   m.add(CARD, 'angularDamping', 0, 3, 0.05).onChange((v) => game.bodies.forEach((b) => b.setAngularDamping(v)));
 
+  const e = gui.addFolder('Letter effects').close();
+  e.add(EFFECTS.stick, 'minSpeed', 0, 20, 0.5).name('stick speed');
+  e.add(EFFECTS.stick, 'approachCone', 0, 90, 1).name('stick cone');
+  e.add(EFFECTS.stick, 'faceCone', 0, 90, 1).name('stick face cone');
+  e.add(EFFECTS.curve, 'gain', 0, 0.4, 0.005).name('curve gain');
+  e.add(EFFECTS.curve, 'biasSpin', -20, 20, 0.5).name('curve bias spin');
+  e.add(EFFECTS.ripple, 'restitution', 0, 1, 0.01)
+    .name('ripple bounce')
+    .onChange((v) =>
+      game.letters
+        .filter((l) => l.family === FAMILY.ripple)
+        .forEach((l) => {
+          const body = game.bodies[l.id];
+          for (let i = 0; i < body.numColliders(); i++) body.collider(i).setRestitution(v);
+        }),
+    );
+  e.add(EFFECTS.ripple, 'radius', 0, 6, 0.1).name('ripple radius');
+  e.add(EFFECTS.ripple, 'strength', 0, 8, 0.1).name('ripple strength');
+  e.add(EFFECTS.ripple, 'wallShake').name('ripple wall shake');
+
   const actions = {
     'return letters to fan': () => game.letters.forEach((l) => l.status !== STATUS.held && game.placeInFan(l)),
     'show colliders': false,
@@ -50,7 +71,14 @@ export function createDevPanel({ game, colliderDebug }) {
 // Lines for the info overlay.
 export function describeState(game, rapierVersion, physics) {
   const lines = [`rapier ${rapierVersion}  steps ${physics.stepCount}  bricks ${game.bricks.length}`];
-  lines.push(game.letters.map((l) => `${l.char}:${l.status}`).join(' '));
+  lines.push(game.letters.map((l) => `${l.char}(${l.family[0]}):${l.status}`).join(' '));
+  const c = game.lastContact;
+  if (c) {
+    const parts = [`last contact ${c.letter}: ${c.speed.toFixed(1)} u/s`];
+    if (c.approach !== undefined) parts.push(`approach ${c.approach.toFixed(0)} deg  face ${c.face.toFixed(0)} deg  -> ${c.stick ? 'STICK' : 'bounce'}`);
+    if (c.ripple) parts.push('RIPPLE');
+    lines.push(parts.join('  '));
+  }
   const p = game.lastPlan;
   if (p) {
     const deg = (r) => ((r * 180) / Math.PI).toFixed(1);

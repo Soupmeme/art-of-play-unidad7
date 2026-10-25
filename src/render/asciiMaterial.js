@@ -30,6 +30,8 @@ uniform float uFlat;
 uniform float uGlow;
 uniform vec3 uBase;
 uniform vec3 uInk;
+uniform vec2 uSize; // surface size in world units
+uniform vec4 uPulse[4]; // impacts: x, y (from the bottom-left corner), start time, kind (0 none, 1 stick, 2 ripple, 3 bounce)
 varying vec2 vAsciiUv;
 
 // Atlas index of each letter of ARTOFPLAY (atlas order A R T O F P L Y).
@@ -44,9 +46,33 @@ float asciiInk(vec2 uv) {
   vec2 id = floor(cell);
   vec2 f = fract(cell);
 
+  // Impacts answer in the type itself: a Stick hit lights the cells it bit
+  // into, a Ripple sends a ring outward that knocks cells out of line, a plain
+  // bounce leaves a faint flash.
+  vec2 pos = (id + 0.5) / uGrid * uSize;
+  float flash = 0.0;
+  float shove = 0.0;
+  for (int i = 0; i < 4; i++) {
+    vec4 p = uPulse[i];
+    float age = uTime - p.z;
+    if (p.w < 0.5 || age < 0.0) continue;
+    float d = distance(pos, p.xy);
+    if (p.w < 1.5) {
+      flash = max(flash, step(d, 0.6) * (1.0 - smoothstep(0.0, 0.7, age)));
+    } else if (p.w < 2.5) {
+      float fade = 1.0 - smoothstep(0.0, 1.4, age);
+      float band = 1.0 - smoothstep(0.0, 0.3, abs(d - age * 4.0));
+      flash = max(flash, band * fade);
+      shove += band * fade * 3.0;
+    } else {
+      flash = max(flash, 0.5 * step(d, 0.35) * (1.0 - smoothstep(0.0, 0.3, age)));
+    }
+  }
+
   float tick = floor(uTime * uJagRate);
   float glitched = step(1.0 - uJagShare, asciiHash(vec2(id.y, tick + 17.0)));
   float jag = glitched * floor((asciiHash(vec2(id.y, tick)) - 0.5) * 2.0 * uJag + 0.5);
+  jag += floor(shove + 0.5) * (mod(id.y, 2.0) * 2.0 - 1.0); // alternate rows shove opposite ways
   float src = id.x + floor(uTime * uScroll) + jag; // content column shown in this cell
 
   float level = uFlat;
@@ -58,6 +84,7 @@ float asciiInk(vec2 uv) {
     float lit = step(1.0 - uFlicker, asciiHash(vec2(src, id.y) + floor(uTime * 3.0)));
     level = max(step(0.5, cover), max(uDim, lit * 0.45));
   }
+  level = max(level, flash);
 
   int k = int(mod(src + id.y * 4.0, 9.0));
   vec2 g = vec2((PHRASE[k] + mix(0.06, 0.94, f.x)) / 8.0, mix(0.04, 0.96, f.y));
@@ -76,6 +103,7 @@ export function createAsciiMaterial({
   params,
   flat = 1,
   scroll = params.scroll,
+  size = { x: 1, y: 1 },
   roughness = 0.8,
 }) {
   const uniforms = {
@@ -98,6 +126,8 @@ export function createAsciiMaterial({
     uGlow: { value: params.glow },
     uBase: { value: new THREE.Color(base) },
     uInk: { value: new THREE.Color(ink) },
+    uSize: { value: new THREE.Vector2(size.x, size.y) },
+    uPulse: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 0, 0)) },
   };
 
   const material = new THREE.MeshStandardMaterial({ color: base, roughness });

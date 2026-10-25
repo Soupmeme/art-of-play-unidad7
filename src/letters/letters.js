@@ -1,6 +1,8 @@
 // The nine letters as plain data. Runtime and tests both build letters only
 // through these factories, so tests always see the real data shape.
 
+import { familyOf } from './families.js';
+
 export const PHRASE = 'ARTOFPLAY';
 
 // Each word: its letters and the phrase index where it starts.
@@ -25,8 +27,11 @@ export function createLetterState(index) {
   return {
     id: index,
     char: PHRASE[index],
+    family: familyOf(PHRASE[index]),
     status: STATUS.inFan,
     restTime: 0, // seconds spent below the rest thresholds
+    airborne: false, // released and not yet touching anything (Curve acts only then)
+    stuckTo: null, // brick index while stuck
   };
 }
 
