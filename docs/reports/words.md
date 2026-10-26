@@ -6,17 +6,17 @@ These are measurements of the code, not playtest results.
 
 | sequence | step | letter status after | letter position (x, y, z) | words |
 |---|---|---|---|---|
-| full phrase | F thrown hard: sticks (anchor of OF) | stuck | 1.00, 2.51, -11.98 | ART cold, OF cold, PLAY cold |
-| full phrase | O thrown at its slot left of F: pulled in, OF locks | locked | -0.15, 2.49, -11.96 | ART cold, OF locked, PLAY cold |
-| full phrase | A thrown hard: sticks (anchor of ART) | stuck | -3.50, 3.60, -11.98 | ART cold, OF locked, PLAY cold |
-| full phrase | R thrown straight at its slot: pulled, hovers beside A (partial progress) | onTable | -2.27, 3.60, -11.96 | ART pulling, OF locked, PLAY cold |
-| full phrase | T thrown hard at its slot: pulled (does not stick), ART locks | locked | -1.23, 3.59, -11.96 | ART locked, OF locked, PLAY cold |
-| full phrase | L thrown hard: sticks (anchor of PLAY) | stuck | 2.20, 1.21, -11.98 | ART locked, OF locked, PLAY cold |
-| full phrase | P thrown straight at its slot left of L: pulled | onTable | 1.14, 1.23, -11.96 | ART locked, OF locked, PLAY pulling |
-| full phrase | second A at its slot right of L: pulled | onTable | 3.24, 1.24, -11.96 | ART locked, OF locked, PLAY pulling |
+| full phrase | F thrown hard: sticks (anchor of OF) | stuck | 1.00, 2.51, -12.00 | ART cold, OF cold, PLAY cold |
+| full phrase | O thrown at its slot left of F: pulled in, OF locks | locked | -0.15, 2.49, -11.98 | ART cold, OF locked, PLAY cold |
+| full phrase | A thrown hard: sticks (anchor of ART) | stuck | -3.50, 3.60, -12.00 | ART cold, OF locked, PLAY cold |
+| full phrase | R thrown straight at its slot: pulled, hovers beside A (partial progress) | onTable | -2.27, 3.60, -11.98 | ART pulling, OF locked, PLAY cold |
+| full phrase | T thrown hard at its slot: pulled (does not stick), ART locks | locked | -1.23, 3.59, -11.98 | ART locked, OF locked, PLAY cold |
+| full phrase | L thrown hard: sticks (anchor of PLAY) | stuck | 2.20, 1.21, -12.00 | ART locked, OF locked, PLAY cold |
+| full phrase | P thrown straight at its slot left of L: pulled | onTable | 1.14, 1.23, -11.98 | ART locked, OF locked, PLAY pulling |
+| full phrase | second A at its slot right of L: pulled | onTable | 3.24, 1.24, -11.98 | ART locked, OF locked, PLAY pulling |
 | full phrase | Y at its slot: PLAY locks, finale begins | locked | 4.90, 2.20, -8.00 | ART locked, OF locked, PLAY ready |
 | full phrase | finale: all nine on one line | locked | 4.90, 2.20, -8.00 | ART locked, OF locked, PLAY ready |
 | no anchor | O and F lying flat in order, 1.1 apart: they stand up and lock | locked | -0.10, 0.52, -10.05 | ART cold, OF locked, PLAY cold |
-| wrong order | O thrown at the mirror slot, right of F: nothing | flying | 0.96, 0.04, -5.41 | ART cold, OF cold, PLAY cold |
-| mis-anchored | A and T stuck 1.2 apart | stuck | 0.19, 2.50, -11.99 | ART unresolvable, OF cold, PLAY cold |
-| mis-anchored | R thrown between them: not pulled, ART stays unresolvable | onTable | 0.16, 0.01, -9.77 | ART unresolvable, OF cold, PLAY cold |
+| wrong order | O thrown at the mirror slot, right of F: nothing | flying | 0.52, 0.02, -5.01 | ART cold, OF cold, PLAY cold |
+| mis-anchored | A and T stuck 1.2 apart | stuck | 0.19, 2.50, -12.00 | ART unresolvable, OF cold, PLAY cold |
+| mis-anchored | R thrown between them: not pulled, ART stays unresolvable | onTable | -0.14, 0.01, -10.77 | ART unresolvable, OF cold, PLAY cold |

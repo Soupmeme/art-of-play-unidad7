@@ -248,3 +248,38 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 - **Tests (`test/decoys.test.js`):** schedule determinism and spacing; tell grading; impostor warmth (full at the right slot, zero in wrong order or far); erosion and melting; in real Rapier: a shed decoy lands on the table, count 0 never sheds, a decoy sitting exactly in O's slot beside a stuck F never pulls or locks while the real O still completes OF, a stuck decoy melts away, a loose decoy erodes away.
 - **Checked in the browser:** a decoy O placed in OF's open slot shows the full tell (sliced bands, greyed); a decoy R lying far from any A shows only the faint one. A GLSL compile error (`active` is a reserved word) was found there and fixed.
 - **Open for playtests:** whether the at-rest tell is too faint to notice at all, or the near-slot tell gives the game away. Compare sessions with `DECOYS.count` 0 and 3.
+
+## 2026-10-25, the magic stage; wall contact fixes; faster decoys (Kiwi's direction)
+
+### Decoys shed sooner
+- **Decision:** first shed after 8 s of play (was 18), then every 6 to 12 s (was 12 to 22). Still at most 3 at once.
+
+### Stuck letters are frozen, not jointed
+- **Observation (Kiwi):** a letter that stuck sometimes ended up beyond the wall and could not be got out, even by hitting it with a sharp letter.
+- **Cause:** a stuck letter was held to its brick by a fixed joint with contacts against that brick switched off. Rapier solves joints softly, so hits from other letters could shove the stuck letter through its own brick, behind the visible wall face.
+- **Decision:** a stuck card is made kinematic at its embedded pose. Nothing can push it. Tested: a stuck T hit straight on by a hard O and a hard Y does not move at all.
+- **M4 note:** when the decay scheduler releases a brick, the cards stuck to it will be released too.
+
+### Knock-out: a sharp letter pries a stuck one loose (NON-PHYSICAL, 4a)
+- **Decision:** a flying Stick letter that hits a stuck card at 9 units/s or more knocks it loose: the stuck card becomes dynamic again with 30% of the hitter's sideways and vertical velocity, 1.2 units/s away from the wall and a little spin, and falls back onto the stage. The hitter bounces off and does not bite. Ripple letters and soft hits do not knock anything out (tested). The wall's type sends a small ring where it happens.
+- **Why:** answers Kiwi's expectation, and it is a third way out of a lockout (after the pull beating the stick, and Ripple wall stress), in the hands of the player: Stick commits, but a sharp, hard throw can undo a commitment.
+- **Contact priority:** a card touching another card and the wall in the same step now counts the card first, then the wall, then the room. Without this, a hitter striking a stuck letter sometimes registered the brick behind it first and bit in on top of it.
+
+### Nothing gets behind the wall
+- **Decision:** the side boundaries meet the wall's edges (x = ±6.05 against a wall half width of 6.0, was ±6.4, a 0.4 gap a letter could slip through) and the back boundary sits right behind the wall (z = -12.35, was -14). A letter that bounces over the top now comes to rest on top of the wall, in sight and holdable, instead of falling out of reach behind it. Tested with throws at the wall's corners and top.
+
+### The magic stage (Kiwi: "our playing field is a magic stage")
+- **Decision:** the green card table becomes a stage in a dark auditorium:
+  - **Floor:** plain dark stage boards (`#241a15`), the one surface that is not a letter, as the felt was.
+  - **Backdrop:** the wall, near black (`#151114`) with warm ivory type, so the cards and the marquee words read.
+  - **Curtains:** red velvet made of letters: about 1,500 small letters of the phrase (cap 0.3) hung in strands 0.15 apart, folded along a sine and turned with the fold so they catch the light, drawn open at both sides of the backdrop, with a scalloped swag across the top. Instanced, decoration only, no colliders.
+  - **Marquee bulbs:** small glowing Os framing the backdrop, chasing in turn (every third dim, stepping 5 times a second). Unlit, so they glow.
+  - **Lighting:** dim house light, a key spot from the rig above casting the shadows, two warm washes on the backdrop, and a soft front fill standing in for footlights so the hand of cards at rest always reads.
+  - **Side lanes:** dark wood colour, still streaming type toward the backdrop.
+- **Palette:** the felt green is gone; the cards keep ivory with oxblood edges; amber stays reserved for locked words. The brief allows Kiwi to override the palette.
+
+### The backdrop no longer spells the answer
+- **Observation (Kiwi):** a backdrop that scrolls ART OF PLAY gives the word away, which works against the decoys.
+- **Decision:** the big marquee words are words of the show, spelled only with the letters of ART OF PLAY, so rule 1 holds (and the font file only carries those letters): TAROT, TRAP, FLOAT, PARLOR, PROP, PORTAL, RAPT, PARROT, LOFT, ROYAL, TOP. Never ART, OF or PLAY, nor words containing ART (PARTY was rejected for that). Each alludes to the act: tarot cards, the trap door, levitation, parlour magic, props, the vanishing portal, a rapt audience, the magician's parrot, the fly loft, the royal flush, the big top. They also work as misdirection, like the decoys.
+- **Decision:** the small cells now show letters picked by a hash of their position, each re-picking now and then, so the background type never spells the phrase either.
+- **Alternative offered to Kiwi:** words with letters outside the phrase (SHOW, MAGIC, CIRCUS) would need an amendment to rule 1 and a regenerated font file.

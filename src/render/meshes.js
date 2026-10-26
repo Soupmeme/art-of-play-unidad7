@@ -94,7 +94,7 @@ export function createCardMeshes(scene, game) {
 // Returns update(seconds) to advance the animation clock.
 export function createTypeSurfaces(scene, game) {
   const atlas = createGlyphAtlas();
-  const banner = createBannerMask();
+  const banner = createBannerMask(ASCII.words);
   const animated = [];
 
   // Wall: one slab covering the brick grid. Only the front face is animated;
@@ -148,7 +148,7 @@ export function createTypeSurfaces(scene, game) {
     const lane = createAsciiMaterial({
       atlas,
       grid: { x: Math.round(length / ASCII.laneCell), y: 2 },
-      base: PALETTE.wall,
+      base: PALETTE.lane,
       ink: PALETTE.wallInk,
       params: ASCII,
       flat: 0.7,
@@ -167,7 +167,8 @@ export function createTypeSurfaces(scene, game) {
   // New wall impacts from the game become pulses in the wall's type, stamped
   // with the render clock. The four most recent are kept.
   // A decoy shed from the wall, or melting back into it, flashes like a bite.
-  const PULSE_KIND = { stick: 1, ripple: 2, bounce: 3, shed: 1, melt: 1 };
+  // A knocked-out letter sends a small ring, like a ripple.
+  const PULSE_KIND = { stick: 1, ripple: 2, bounce: 3, shed: 1, melt: 1, knock: 2 };
   let seen = 0;
   let nextPulse = 0;
 

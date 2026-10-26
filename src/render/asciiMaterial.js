@@ -1,10 +1,11 @@
 // The type animation, as a lit standard material with a patched fragment
 // shader. The surface is divided into character cells; each cell shows one
-// letter of the phrase from the glyph atlas. Content moves in whole-cell
-// steps, like a text-mode (ASCII) animation:
+// of the phrase's letters from the glyph atlas, picked at random (seeded by
+// position) so the small type never spells the answer. Content moves in
+// whole-cell steps, like a text-mode (ASCII) animation:
 //   - every row scrolls sideways at `scroll` cells per second;
 //   - now and then a share of rows jumps out of line by up to `jag` cells;
-//   - with a banner mask, cells inside the big ART OF PLAY are lit, the rest
+//   - with a banner mask, cells inside the big marquee words are lit, the rest
 //     are dim with a few flickering; without one, every cell is lit at `flat`.
 // Purely visual: it never touches physics.
 
@@ -33,9 +34,6 @@ uniform vec3 uInk;
 uniform vec2 uSize; // surface size in world units
 uniform vec4 uPulse[4]; // impacts: x, y (from the bottom-left corner), start time, kind (0 none, 1 stick, 2 ripple, 3 bounce)
 varying vec2 vAsciiUv;
-
-// Atlas index of each letter of ARTOFPLAY (atlas order A R T O F P L Y).
-const float PHRASE[9] = float[9](0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 7.0);
 
 float asciiHash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -86,8 +84,11 @@ float asciiInk(vec2 uv) {
   }
   level = max(level, flash);
 
-  int k = int(mod(src + id.y * 4.0, 9.0));
-  vec2 g = vec2((PHRASE[k] + mix(0.06, 0.94, f.x)) / 8.0, mix(0.04, 0.96, f.y));
+  // Each cell shows a letter picked by hash, so the small type never spells the
+  // phrase; every cell re-picks its letter now and then, at its own moment.
+  float swap = floor(uTime * 0.6 + asciiHash(vec2(id.y * 1.7, src * 0.3)) * 4.0);
+  float letter = floor(asciiHash(vec2(src * 1.37 + swap, id.y * 2.11)) * 7.999);
+  vec2 g = vec2((letter + mix(0.06, 0.94, f.x)) / 8.0, mix(0.04, 0.96, f.y));
   return texture(uAtlas, g).r * level;
 }
 `;

@@ -37,11 +37,11 @@ export const AIR = { coefficient: 0.015 };
 
 export const ROOM = {
   frontZ: -4.3, // invisible glass between the camera and the play area
-  backZ: -14,
+  backZ: -12.35, // just behind the wall's back face: nothing can get behind the wall
   height: 8,
   // Side boundary: from (±nearX, frontZ) to (±farX, wall.z), then straight back.
   nearX: 4.3, // a little past the screen edge at the front, so the hand can reach the sides
-  farX: 6.4,
+  farX: 6.05, // meets the wall's edges (half width 6), so no gap to slip past
   laneHeight: 0.22, // the low side lanes drawn along the side glass
   laneWidth: 0.12,
   tableFriction: 0.6,
@@ -73,11 +73,37 @@ export const ASCII = {
   jagShare: 0.3, // share of rows out of line at any moment
   bannerHeight: 0.62, // big letters, as a share of the wall height
   bannerCenter: 0.6, // raised a little so the fan does not hide the banner
-  dim: 0.13, // background cell brightness
+  dim: 0.1, // background cell brightness (dark enough that the marquee words and the cards read)
   flicker: 0.04, // share of background cells lit at any moment
   glow: 0.35, // emissive strength of lit cells
   laneScroll: 5, // side lanes, cells per second toward the wall
   laneCell: 0.11,
+  // The marquee: words of the show, spelled only with the letters of ART OF
+  // PLAY (rule 1), and never ART, OF or PLAY themselves (nor words holding
+  // ART, like PARTY), so the backdrop teases the act without giving it away.
+  words: ['TAROT', 'TRAP', 'FLOAT', 'PARLOR', 'PROP', 'PORTAL', 'RAPT', 'PARROT', 'LOFT', 'ROYAL', 'TOP'],
+};
+
+// The magic stage: a dark auditorium, a stage floor, the backdrop wall between
+// curtains, bulbs and spotlights. Every shape is a letter of the phrase; the
+// floor is a plain ground, and light is light.
+export const STAGE = {
+  curtain: {
+    cap: 0.3, // letter size in the hanging strands
+    strandGap: 0.15, // spacing between strands
+    fold: 0.22, // depth of the folds
+    foldWidth: 0.9, // width of one fold
+    inner: 5.45, // the curtains start this far from the centre...
+    outer: 8.4, // ...and reach this far
+    z: -11.55, // just in front of the backdrop
+    top: 7.2,
+    valanceBottom: 5.35, // the swag across the top
+  },
+  bulbs: {
+    cap: 0.17, // the marquee bulbs are small glowing Os
+    step: 0.5,
+    y: 0.12, // along the foot of the backdrop
+  },
 };
 
 export const FAN = {
@@ -125,6 +151,7 @@ export const EFFECTS = {
     approachCone: 40, // degrees between the flight direction and straight into the wall
     faceCone: 50, // degrees between the letter's face and the wall face
     bite: 0.012, // how far the embedded letter sinks into the wall face
+    knockSpeed: 9, // a Stick letter hitting a stuck one at least this fast knocks it loose
   },
   curve: {
     gain: 0.12, // sideways acceleration per (rad/s of spin x units/s of speed)
@@ -175,9 +202,9 @@ export const WORD_RULES = {
 export const DECOYS = {
   count: 3, // most decoys at once; 0 turns the mechanic off (for playtest comparison)
   chars: 'ARTOFPLY',
-  firstAfter: 18, // seconds of play (from the first hold) before the first shed
-  intervalMin: 12, // seconds between sheds
-  intervalMax: 22,
+  firstAfter: 8, // seconds of play (from the first hold) before the first shed
+  intervalMin: 6, // seconds between sheds
+  intervalMax: 12,
   lifetime: 35, // seconds a loose decoy lasts
   erodeTime: 6, // the last seconds of its life, eroding visibly
   meltTime: 1.2, // seconds for a stuck decoy to melt into the wall
@@ -204,10 +231,14 @@ export const STATUS_RULES = {
 };
 
 export const PALETTE = {
-  felt: 0x0f1a16,
+  house: 0x0a0708, // the dark auditorium around the stage
+  floor: 0x241a15, // the stage boards, a plain dark ground
   ivory: 0xefe6d2,
   oxblood: 0x6e1a1f,
-  wall: 0x6b1a20, // solid oxblood slab, set off from the green felt
-  wallInk: 0xf2c9a7, // lit type cells on the wall and lanes
-  glow: 0xffb347,
+  wall: 0x151114, // the backdrop: near black, so the marquee type and the ivory cards read
+  wallInk: 0xe9d6b0, // lit type cells on the backdrop and lanes
+  lane: 0x2c1e17, // the low lanes at the stage's sides
+  curtain: 0x7a1620, // deep red velvet, made of letters
+  bulb: 0xffe3ad, // warm marquee bulbs
+  glow: 0xffb347, // locked words: the one accent
 };

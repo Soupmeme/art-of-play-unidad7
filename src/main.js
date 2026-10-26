@@ -5,6 +5,7 @@ import { createGame } from './game.js';
 import { createRenderer } from './render/renderer.js';
 import { createCardMeshes, createTypeSurfaces, createColliderDebug } from './render/meshes.js';
 import { createHoldThrow } from './input/holdThrow.js';
+import { createStage } from './render/stage.js';
 import { isDevMode, createDevTools } from './dev/devTools.js';
 
 async function main() {
@@ -17,6 +18,7 @@ async function main() {
   const view = createRenderer(canvas);
   const cardMeshes = createCardMeshes(view.scene, game);
   const typeSurfaces = createTypeSurfaces(view.scene, game);
+  const stage = createStage(view.scene);
   const colliderDebug = createColliderDebug(view.scene);
   createHoldThrow({ canvas, camera: view.camera, game, meshes: cardMeshes.meshes });
 
@@ -40,6 +42,7 @@ async function main() {
     advance(frameSeconds, hooks);
     cardMeshes.sync(now / 1000);
     typeSurfaces.update(now / 1000);
+    stage.update(now / 1000);
     colliderDebug.update(physics.world);
     view.render();
     if (dev) dev.setInfo(dev.describe());

@@ -52,7 +52,6 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   const colliderHandles = [];
   const preVelocity = []; // velocity before this step: the impact velocity
   const lastRipple = [];
-  const joints = [];
 
   const fan = fanLayout({
     advances: letters.map((l) => forms[l.id].advance),
@@ -103,7 +102,6 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     bodies[card.id] = body;
     preVelocity[card.id] = { ...ZERO };
     lastRipple[card.id] = -Infinity;
-    joints[card.id] = null;
     return body;
   }
 
@@ -187,8 +185,6 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   }
 
   function unstick(card) {
-    if (joints[card.id]) world.removeImpulseJoint(joints[card.id], true);
-    joints[card.id] = null;
     card.stuckTo = null;
   }
 
@@ -274,24 +270,36 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   }
 
   // NON-PHYSICAL (4a), Stick: the card is pressed flat into the wall face and
-  // joined to the brick it hit by a fixed joint. If the brick later falls, the
-  // card falls with it.
+  // frozen there (kinematic), remembering the brick it bit into. Frozen, not
+  // jointed: a joint is solved softly, and hits from other letters could shove
+  // a stuck letter through its own brick until it sat behind the wall face,
+  // out of reach. A frozen card cannot be pushed. (When bricks fall, M4,
+  // cards stuck to them are released.)
   function embed(card, brickIndex) {
     const body = bodies[card.id];
     const pose = embedPose(body.translation(), body.rotation(), WALL.z, CARD.thickness, EFFECTS.stick.bite);
+    body.setBodyType(rapier.RigidBodyType.KinematicPositionBased, true);
     body.setTranslation(pose.position, true);
     body.setRotation(pose.rotation, true);
     body.setLinvel(ZERO, true);
     body.setAngvel(ZERO, true);
-    const brick = brickBodies[brickIndex];
-    const b = brick.translation();
-    const anchor = { x: pose.position.x - b.x, y: pose.position.y - b.y, z: pose.position.z - b.z };
-    const joint = world.createImpulseJoint(rapier.JointData.fixed(anchor, pose.rotation, ZERO, IDENTITY), brick, body, true);
-    joint.setContactsEnabled(false);
-    joints[card.id] = joint;
     card.status = STATUS.stuck;
     card.stuckTo = brickIndex;
     card.airborne = false;
+  }
+
+  // NON-PHYSICAL (4a), Stick: a sharp letter hitting a stuck card hard enough
+  // pries it loose. It drops away from the wall, carrying a share of the hit.
+  function knockOut(card, hitVelocity) {
+    const body = bodies[card.id];
+    body.setBodyType(rapier.RigidBodyType.Dynamic, true);
+    body.setGravityScale(1, true);
+    body.setLinvel({ x: hitVelocity.x * 0.3, y: hitVelocity.y * 0.3 - 0.5, z: 1.2 }, true);
+    body.setAngvel({ x: 1.5, y: 0, z: -hitVelocity.x * 0.4 }, true);
+    unstick(card);
+    card.status = STATUS.flying;
+    card.restTime = 0;
+    recordImpact('knock', body.translation());
   }
 
   // NON-PHYSICAL (4a), Ripple: kicks nearby free cards and stresses nearby bricks.
@@ -320,7 +328,11 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     const speed = Math.hypot(v.x, v.y, v.z);
     let kind = 'bounce';
 
-    if (card.family === FAMILY.stick && other.type === 'brick') {
+    const target = other.type === 'card' ? cardById.get(other.id) : null;
+    if (card.family === FAMILY.stick && target?.status === STATUS.stuck && speed >= EFFECTS.stick.knockSpeed) {
+      knockOut(target, v);
+      lastContact = { letter: card.char, decoy: !!card.decoy, speed, knocked: target.char };
+    } else if (card.family === FAMILY.stick && other.type === 'brick') {
       const check = stickCheck(v, body.rotation(), EFFECTS.stick);
       // Lockout mitigation (a): a letter being pulled by a correct neighbour
       // does not embed; the pull wins.
@@ -505,7 +517,11 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   }
 
   function afterStep(dt) {
-    // Contacts that started this step; one per card, the first one seen.
+    // Contacts that started this step; one per card. A card hitting another
+    // card and the wall in the same step counts the card first (so a sharp
+    // letter striking a stuck one knocks it out rather than biting the wall
+    // behind it), then the wall, then the room.
+    const RANK = { card: 3, brick: 2, room: 1 };
     const contacts = new Map();
     physics.eventQueue.drainCollisionEvents((h1, h2, started) => {
       if (!started) return;
@@ -514,7 +530,11 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
         [h2, h1],
       ]) {
         const id = cardOfCollider.get(mine);
-        if (id !== undefined && !contacts.has(id)) contacts.set(id, classify(theirs));
+        if (id === undefined) continue;
+        const other = classify(theirs);
+        if (other.type === 'card' && other.id === id) continue;
+        const seen = contacts.get(id);
+        if (!seen || RANK[other.type] > RANK[seen.type]) contacts.set(id, other);
       }
     });
     for (const [id, other] of contacts) {

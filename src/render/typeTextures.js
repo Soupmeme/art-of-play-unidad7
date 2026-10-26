@@ -1,6 +1,7 @@
 // Textures drawn from the Cinzel letterforms themselves (no font file at
-// runtime): a glyph atlas of the phrase's letters, and a wide strip with
-// ART OF PLAY set in type, used as the mask of the big scrolling banner.
+// runtime): a glyph atlas of the phrase's letters, and a wide strip with the
+// stage's marquee words set in type, used as the mask of the big scrolling
+// banner. The words use only the letters of ART OF PLAY (rule 1).
 
 import * as THREE from 'three';
 import { glyphContours, advanceWidth, kerning } from '../letters/glyphs.js';
@@ -45,10 +46,11 @@ export function createGlyphAtlas(cellPx = 128) {
 
 // ART OF PLAY set with the font's advance widths and kerning, followed by a
 // gap, so the strip repeats seamlessly as it scrolls.
-export function createBannerMask(text = 'ART OF PLAY', heightPx = 256) {
+export function createBannerMask(words, heightPx = 128) {
+  const text = words.join(' ');
   const cap = heightPx * 0.78;
-  const space = 0.45;
-  const trailing = 1.4;
+  const space = 2.2; // a marquee-wide gap between words
+  const trailing = space;
   const pieces = [];
   let units = 0;
   for (let i = 0; i < text.length; i++) {
