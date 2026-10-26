@@ -76,3 +76,56 @@ describe('nothing gets behind the wall', () => {
     for (const { id } of aims) expect(g.bodies[id].translation().z).toBeGreaterThan(WALL.z - 0.02);
   }, 60000);
 });
+
+describe('letters lying together on the floor', () => {
+  const FLAT = { x: -Math.SQRT1_2, y: 0, z: 0, w: Math.SQRT1_2 };
+
+  it('a warm pair (O then F) stays put: the hint never moves the bodies', async () => {
+    const s = await createSession();
+    const g = s.game;
+    g.debugPlace(g.letters[ID.O], { x: -0.5, y: 0.02, z: -9 }, FLAT);
+    g.debugPlace(g.letters[ID.F], { x: 0.5, y: 0.02, z: -9 }, FLAT);
+    s.wait(6);
+    expect(g.resolution.letters[ID.O].warmth).toBeGreaterThan(0.5);
+    const o = g.bodies[ID.O].translation();
+    const f = g.bodies[ID.F].translation();
+    expect(Math.hypot(o.x - f.x, o.z - f.z)).toBeGreaterThan(0.95);
+  }, 30000);
+
+  it('lifting one of them does not drag the other along', async () => {
+    const s = await createSession();
+    const g = s.game;
+    g.debugPlace(g.letters[ID.O], { x: -0.5, y: 0.02, z: -9 }, FLAT);
+    g.debugPlace(g.letters[ID.F], { x: 0.5, y: 0.02, z: -9 }, FLAT);
+    s.wait(6);
+    const before = g.bodies[ID.F].translation();
+    g.hold(g.letters[ID.O]);
+    g.setHoldTarget({ x: -2, y: 1.5, z: 0 });
+    s.wait(1);
+    const after = g.bodies[ID.F].translation();
+    expect(Math.hypot(after.x - before.x, after.y - before.y, after.z - before.z)).toBeLessThan(0.05);
+  }, 30000);
+});
+
+describe('letters never hook together', () => {
+  // Letters touch each other through their solid outlines (counters filled),
+  // so a stroke cannot pass through another letter's counter and lock the two.
+  for (const [stuckId, hitterId, aimX] of [
+    [ID.T, ID.A1, 2],
+    [ID.F, ID.T, 0],
+    [ID.L, ID.F, -3],
+  ]) {
+    it(`a letter knocked loose and the letter that hit it come apart (${stuckId} hit by ${hitterId})`, async () => {
+      const s = await createSession();
+      const g = s.game;
+      s.throwLetter({ letterId: stuckId, aim: { x: aimX, y: 2.5 }, pointer: FULL });
+      s.throwLetter({ letterId: hitterId, aim: { x: aimX, y: 2.5 }, pointer: FULL, seconds: 3 });
+      const before = g.bodies[hitterId].translation();
+      expect(g.hold(g.letters[stuckId])).toBe(true);
+      g.setHoldTarget({ x: 2, y: 1.5, z: 0 });
+      s.wait(1);
+      const after = g.bodies[hitterId].translation();
+      expect(Math.hypot(after.x - before.x, after.y - before.y, after.z - before.z)).toBeLessThan(0.05);
+    }, 30000);
+  }
+});

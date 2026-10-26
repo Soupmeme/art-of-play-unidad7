@@ -2,6 +2,8 @@
 // animation; in physics each brick is its own body, so the decay scheduler
 // can later release them one at a time. Layout is pure data.
 
+import { WORLD_GROUPS } from '../physics/groups.js';
+
 // Returns one brick per cell: { index, col, row, x, y, z, w, h, d }, with
 // (x, y, z) the brick centre. The wall is centred on x = 0 and stands on y = 0.
 export function layoutWall({ cols, rows, brickWidth, brickHeight, z, depth }) {
@@ -34,7 +36,8 @@ export function createBrickBodies(physics, bricks, { friction, restitution }) {
     world.createCollider(
       rapier.ColliderDesc.cuboid(b.w / 2 - gap, b.h / 2 - gap, b.d / 2)
         .setFriction(friction)
-        .setRestitution(restitution),
+        .setRestitution(restitution)
+        .setCollisionGroups(WORLD_GROUPS),
       body,
     );
     return body;

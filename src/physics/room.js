@@ -3,6 +3,8 @@
 // view, so letters cannot leave the frame. The side boundaries follow the rails
 // that are drawn on the table (DECISIONS, flag 5).
 
+import { WORLD_GROUPS } from './groups.js';
+
 // Closed outline of the play area on the table, counter-clockwise from front-left.
 export function roomOutline({ frontZ, backZ, nearX, farX }, wallZ) {
   return [
@@ -24,7 +26,8 @@ export function createRoom(physics, room, wallZ) {
     rapier.ColliderDesc.cuboid(20, 0.5, 20)
       .setTranslation(0, -0.5, -8)
       .setFriction(room.tableFriction)
-      .setRestitution(room.tableRestitution),
+      .setRestitution(room.tableRestitution)
+      .setCollisionGroups(WORLD_GROUPS),
     body,
   );
 
@@ -43,7 +46,8 @@ export function createRoom(physics, room, wallZ) {
         .setTranslation((a.x + b.x) / 2, room.height / 2, (a.z + b.z) / 2)
         .setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) })
         .setFriction(0.2)
-        .setRestitution(0.3),
+        .setRestitution(0.3)
+        .setCollisionGroups(WORLD_GROUPS),
       body,
     );
   }

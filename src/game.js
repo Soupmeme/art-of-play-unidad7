@@ -5,7 +5,7 @@
 import { STATUS, HOLDABLE, WORDS, createLetters, wordStarts } from './letters/letters.js';
 import { FAMILY } from './letters/families.js';
 import { letterForm, wordLayout } from './letters/glyphs.js';
-import { fanLayout } from './letters/fan.js';
+import { handLayout } from './letters/fan.js';
 import { stickCheck, embedPose, curveAcceleration, rippleKicks, rippleShake } from './letters/effects.js';
 import { createDecoyState, createShedder, decoyTell, decoyErosion } from './letters/decoys.js';
 import { resolveWords, letterSnapshot, impostorWarmth } from './words/resolve.js';
@@ -18,15 +18,19 @@ import { applyAirDrag, steerArrive, steerUpright } from './physics/forces.js';
 import { createRng, deriveSeed } from './core/rng.js';
 import { CARD, AIR, ROOM, WALL, FAN, HOLD, EFFECTS, WORD_RULES, DECOYS, OPENING, DECAY, RESET, FINALE, STATUS_RULES, WORLD } from './config.js';
 
-// Collision groups, Rapier's packed form: (membership << 16) | filter.
-// NON-PHYSICAL (4d): letters resting in the fan only touch the room, so a
-// thrown or held letter passes over the hand instead of crashing into it.
-const GROUP = { world: 0b001, letter: 0b010, fan: 0b100 };
-const IN_PLAY = (GROUP.letter << 16) | (GROUP.world | GROUP.letter);
-const IN_FAN = (GROUP.fan << 16) | GROUP.world;
+import { CARD_IN_PLAY, HULL_IN_PLAY, CARD_IN_FAN, HULL_IN_FAN } from './physics/groups.js';
 
-function setGroups(body, groups) {
-  for (let i = 0; i < body.numColliders(); i++) body.collider(i).setCollisionGroups(groups);
+// Puts a card's colliders in play or in the hand (see physics/groups.js).
+// Its last collider is the solid outline; the others are its detailed shape.
+const IN_PLAY = 'play';
+const IN_FAN = 'fan';
+function setGroups(body, mode) {
+  const n = body.numColliders();
+  for (let i = 0; i < n; i++) {
+    const hull = i === n - 1;
+    const groups = mode === IN_FAN ? (hull ? HULL_IN_FAN : CARD_IN_FAN) : hull ? HULL_IN_PLAY : CARD_IN_PLAY;
+    body.collider(i).setCollisionGroups(groups);
+  }
 }
 
 const quatZ = (angle) => ({ x: 0, y: 0, z: Math.sin(angle / 2), w: Math.cos(angle / 2) });
@@ -68,8 +72,9 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
   function layoutHand(order) {
     handOrder = order;
     const inReadingOrder = order.every((id, i) => id === i) && order.length === letters.length;
-    fan = fanLayout({
+    fan = handLayout({
       advances: order.map((id) => forms[id].advance),
+      rows: inReadingOrder ? null : FAN.rows,
       wordStarts: inReadingOrder ? wordStarts() : [],
       center: FAN.center,
       radius: FAN.radius,
@@ -119,6 +124,19 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
       cardOfCollider.set(handle, card.id);
       return handle;
     });
+    // The solid outline, created last: touches other cards only, adds no mass.
+    const outline = forms[card.id].outline;
+    const points = new Float32Array(outline.length * 6);
+    outline.forEach((p, k) => points.set([p.x, p.y, CARD.thickness / 2, p.x, p.y, -CARD.thickness / 2], k * 6));
+    const hull = rapier.ColliderDesc.convexHull(points)
+      .setDensity(0)
+      .setFriction(CARD.friction)
+      .setRestitution(ripple ? EFFECTS.ripple.restitution : CARD.restitution)
+      .setActiveEvents(rapier.ActiveEvents.COLLISION_EVENTS);
+    if (ripple) hull.setRestitutionCombineRule(rapier.CoefficientCombineRule.Max);
+    const hullHandle = world.createCollider(hull, body).handle;
+    cardOfCollider.set(hullHandle, card.id);
+    colliderHandles[card.id].push(hullHandle);
     bodies[card.id] = body;
     preVelocity[card.id] = { ...ZERO };
     lastRipple[card.id] = -Infinity;
@@ -521,24 +539,28 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
     steerUpright(body, { uprightGain: WORD_RULES.pullUprightGain, uprightBlend: WORD_RULES.pullUprightBlend }, dt);
   }
 
-  // NON-PHYSICAL (4b), the warm hint on a free letter: a small rattle whose
-  // size grows with warmth, and a lean (a weak push) toward its partners.
-  function applyWarm(letter, body, warmth, dt) {
-    const kick = WORD_RULES.trembleKick * warmth * Math.sin(2 * Math.PI * WORD_RULES.trembleFrequency * time + phases[letter.id] * 5);
-    const w = body.angvel();
-    body.setAngvel({ x: w.x + kick, y: w.y, z: w.z + kick * 0.5 }, true);
-    const p = body.translation();
-    let lean = { x: 0, z: 0 };
+  // The warm hint's lean (4b), as data for the renderer: for each warm letter,
+  // the direction toward its warm partners, weighted by warmth. Render only:
+  // an earlier version pushed the bodies (a rattle and a lean force), which
+  // walked correct pairs lying on the floor onto each other until they
+  // overlapped and hooked together.
+  function warmLean(id) {
+    const p = bodies[id].translation();
+    let x = 0;
+    let y = 0;
+    let z = 0;
     for (const word of Object.values(resolution.words)) {
       for (const pair of word.pairs) {
-        if (pair.warmth <= 0 || (pair.a !== letter.id && pair.b !== letter.id)) continue;
-        const q = bodies[pair.a === letter.id ? pair.b : pair.a].translation();
-        const d = Math.hypot(q.x - p.x, q.z - p.z) || 1;
-        lean = { x: lean.x + ((q.x - p.x) / d) * pair.warmth, z: lean.z + ((q.z - p.z) / d) * pair.warmth };
+        if (pair.warmth <= 0 || (pair.a !== id && pair.b !== id)) continue;
+        const q = bodies[pair.a === id ? pair.b : pair.a].translation();
+        const d = Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z) || 1;
+        x += ((q.x - p.x) / d) * pair.warmth;
+        y += ((q.y - p.y) / d) * pair.warmth;
+        z += ((q.z - p.z) / d) * pair.warmth;
       }
     }
-    const m = body.mass() * dt * WORD_RULES.leanAccel;
-    body.applyImpulse({ x: lean.x * m, y: 0, z: lean.z * m }, true);
+    const n = Math.hypot(x, y, z);
+    return n > 1 ? { x: x / n, y: y / n, z: z / n } : { x, y, z };
   }
 
   // A word that is ready locks: every member, the anchor included, is set
@@ -622,8 +644,6 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
         if (info.pulled) {
           letter.airborne = false; // the pull takes over from the Curve
           applyPull(bodies[letter.id], info.target, dt);
-        } else if (info.warmth > 0) {
-          applyWarm(letter, bodies[letter.id], info.warmth, dt);
         }
       }
     }
@@ -776,6 +796,7 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
     },
     releaseBrick,
     beginReset,
+    warmLean,
     impacts,
     wall,
     room,

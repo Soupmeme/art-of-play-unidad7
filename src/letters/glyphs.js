@@ -151,10 +151,15 @@ export function letterForm(char, { capHeight = 1, depth = 0.03, colliderCell = 0
     ? rasterBoxes(contours, bounds, colliderCell).map((b) => ({ ...b, x: b.x - cx, y: b.y - cy }))
     : [];
 
+  // Every outline point, centred like the geometry: the convex hull of these
+  // is the card's solid outline (used for card-to-card contact).
+  const outline = contours.flat().map((p) => ({ x: p.x - cx, y: p.y - cy }));
+
   const form = {
     char,
     geometry,
     boxes,
+    outline,
     depth,
     width: bounds.maxX - bounds.minX,
     height: bounds.maxY - bounds.minY,

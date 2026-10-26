@@ -63,8 +63,8 @@ export function createDevPanel({ game, colliderDebug }) {
   w.add(WORD_RULES, 'alignAngle', 2, 45, 1);
   w.add(WORD_RULES, 'pullStiffness', 5, 120, 1);
   w.add(WORD_RULES, 'pullDamping', 0.2, 2, 0.05);
-  w.add(WORD_RULES, 'trembleKick', 0, 10, 0.1);
-  w.add(WORD_RULES, 'leanAccel', 0, 6, 0.1);
+  w.add(WORD_RULES, 'tremble', 0, 0.05, 0.001).name('warm tremble');
+  w.add(WORD_RULES, 'leanOffset', 0, 0.2, 0.005).name('warm lean');
 
   const d = gui.addFolder('Decoys').close();
   d.add(DECOYS, 'count', 0, 3, 1).name('at most (0 = off)');

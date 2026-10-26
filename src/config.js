@@ -113,6 +113,10 @@ export const FAN = {
   overlap: 0.64, // fraction of the mean advance between neighbours
   wordGap: 0.45, // only used when the hand is in reading order (shuffle off)
   maxSpan: 6.8, // the hand never gets wider than this along its arc; more cards overlap more
+  // A hand of rows.min cards or more is dealt in two rows, one above the
+  // other: the back row higher and further away, shifted half a card so its
+  // letters show between the front row's.
+  rows: { min: 8, rise: 0.62, back: 0.3, stagger: 0.42, overlap: 0.86 },
   layerStep: 0.04, // later cards sit slightly in front, like a held hand
   breatheAmplitude: 0.012, // idle breathing, units
   breatheRotation: 0.006, // radians
@@ -190,11 +194,11 @@ export const WORD_RULES = {
   pullMaxAccel: 80, // units/s^2
   pullUprightGain: 6,
   pullUprightBlend: 8,
-  // Warm hint on free letters: a rattle plus a lean toward the partner.
-  trembleKick: 3.0, // rad/s per step at full warmth (averages out to a small wobble)
-  trembleFrequency: 9, // Hz
-  leanAccel: 1.2, // units/s^2 toward the partner at full warmth
-  stuckTremble: 0.006, // units: render-only tremble of a stuck letter at full warmth
+  // Warm hint, render only (the bodies never move for it): the letter's mesh
+  // trembles and leans toward its partner on screen.
+  tremble: 0.007, // units of jitter at full warmth
+  leanOffset: 0.035, // units the mesh leans toward its partner at full warmth
+  leanTilt: 0.06, // radians it tips toward its partner at full warmth
 };
 
 // Decoys (Kiwi's amendment, 2026-10-25): extra letter-cards shed by the wall.

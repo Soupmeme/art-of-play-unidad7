@@ -335,3 +335,22 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 
 ### Dev tools
 - "Decay and reset" folder in the dev panel (grace, rise, intervals, cluster size, telegraph, respite, collapse fraction, quiet seconds; "drop a brick now", "reset now"); the readout shows D, the next event, fallen bricks, the quiet timer and any reset in progress.
+
+## 2026-10-25, letters clinging together; the hand in two rows (Kiwi's report)
+
+### Cause 1: the warm hint moved the bodies
+- **Observation (Kiwi):** a letter that fell to the floor sometimes stuck together with another.
+- **Measured:** a correct pair (O then F) lying 1.0 apart on the floor walked onto each other in about 5 s: the warm hint's rattle spun them at up to 6.8 rad/s and its lean force pushed them together until they overlapped and hooked; lifting the O then dragged the F 3.1 units. A pair that is not a word pair (T, O) did not move at all.
+- **Decision:** the warm hint is now render only for every letter, as it already was for stuck ones: the mesh trembles (up to 7 mm) and leans toward its partner (up to 3.5 cm, tipping up to 0.06 rad); the body never moves for it. This also removes a non-physical force from the simulation (4b is now: the pull, plus a purely visual hint).
+- **Tested:** the same warm pair now stays 1.0 apart for 6 s, and lifting one leaves the other where it was.
+
+### Cause 2: strokes could pass through another letter's counter
+- **Measured:** a T knocked loose by an A ended up hooked to it; lifting the T dragged the A 3.4 units. Each letter's collider is a set of boxes with its counters left open (so letters bite and land precisely), and a stroke of one letter could pass through the open counter of another and lock the two like rings.
+- **Decision:** each card now has a second collider, its solid outline (the convex hull of its glyph outline, counters filled, no mass). Cards touch each other only through these outlines; they touch the wall, floor and room only through their detailed boxes (`src/physics/groups.js`). Two convex shapes cannot interlock.
+- **Approximation, stated plainly:** letters now bounce off each other's empty space (a letter cannot sit inside an O's counter). Against the wall and floor nothing changes.
+- **Tested:** in 8 knock-out cases, lifting one letter afterwards never moved the other by more than 1.3 cm (3 kept as regression tests).
+
+### The hand in two rows
+- **Observation (Kiwi):** with 10 or 11 cards the fan was too tightly packed.
+- **Decision:** a hand of 8 or more cards is dealt in two rows, one above the other: the back row (the first half of the hand order) 0.62 higher and 0.3 further away, shifted 0.42 left; the front row below and in front, shifted 0.42 right, so back-row letters show between front-row ones. Within a row the cards overlap less (0.86 of their mean advance, was 0.64). The deal fills the back row left to right, then the front row.
+- **Trade-off:** the back row's tops reach about 58% down the screen (the single row reached 72%), so the hand now covers a little more of the middle of the stage; the stage near the backdrop stays clear.

@@ -6,17 +6,17 @@ Measurements of the current mapping, not playtest results. Coordinates in card h
 | run | letter | kind | power | aim (x, y) | wall hit (x, y) | flight s | rest (x, y, z) | status |
 |---|---|---|---|---|---|---|---|---|
 | full power, letter 0 | A | throw | 1.00 | 0.00, 2.50 | -0.03, 2.50 | 0.62 | -0.00, 2.50, -12.00 | stuck |
-| full power, letter 1 | R | throw | 1.00 | -4.00, 3.50 | -2.71, 3.41 | 0.63 | -2.58, 0.01, -8.47 | onTable |
+| full power, letter 1 | R | throw | 1.00 | -4.00, 3.50 | -2.71, 3.41 | 0.63 | -2.31, 0.01, -8.78 | onTable |
 | full power, letter 2 | T | throw | 1.00 | 4.00, 1.20 | 3.98, 1.18 | 0.70 | 4.04, 1.15, -12.00 | stuck |
-| full power, letter 3 | O | throw | 1.00 | 2.00, 4.20 | 1.99, 4.18 | 0.68 | 1.11, 0.59, -4.70 | flying |
-| full power, letter 4 | F | throw | 1.00 | -2.00, 0.80 | -1.99, 0.81 | 0.57 | -2.00, 0.80, -12.00 | stuck |
+| full power, letter 3 | O | throw | 1.00 | 2.00, 4.20 | 1.99, 4.18 | 0.68 | 2.14, 0.55, -6.68 | flying |
+| full power, letter 4 | F | throw | 1.00 | -2.00, 0.80 | -1.99, 0.81 | 0.57 | -2.00, 0.81, -12.00 | stuck |
 | full power, letter 5 | P | throw | 1.00 | 0.00, 2.50 | 1.16, 2.58 | 0.58 | 1.38, 0.01, -9.15 | onTable |
 | full power, letter 6 | L | throw | 1.00 | -4.00, 3.50 | -3.98, 3.45 | 0.78 | -4.03, 3.43, -12.00 | stuck |
-| full power, letter 7 | A | throw | 1.00 | 4.00, 1.20 | 3.99, 1.22 | 0.55 | 4.00, 1.20, -12.00 | stuck |
-| full power, letter 8 | Y | throw | 1.00 | 2.00, 4.20 | 2.01, 4.18 | 0.65 | 1.40, 0.01, -5.05 | flying |
+| full power, letter 7 | A | throw | 1.00 | 4.00, 1.20 | 3.99, 1.22 | 0.55 | 4.00, 1.21, -12.00 | stuck |
+| full power, letter 8 | Y | throw | 1.00 | 2.00, 4.20 | 2.01, 4.18 | 0.65 | 1.35, 0.05, -5.06 | flying |
 | flick 3.5 H/s | T | throw | 1.00 | 0.00, 3.00 | -0.01, 3.00 | 0.60 | -0.00, 3.00, -12.00 | stuck |
-| flick 1.8 H/s | T | throw | 0.60 | 0.00, 3.00 | -0.00, 1.75 | 0.80 | -0.14, 0.01, -10.35 | onTable |
-| flick 1.0 H/s | T | throw | 0.20 | 0.00, 3.00 | none |  | 0.09, 0.01, -11.14 | onTable |
+| flick 1.8 H/s | T | throw | 0.60 | 0.00, 3.00 | -0.00, 1.75 | 0.80 | 0.26, 0.01, -10.41 | onTable |
+| flick 1.0 H/s | T | throw | 0.20 | 0.00, 3.00 | none |  | 0.10, 0.01, -11.13 | onTable |
 | slow release | F | drop | 0.00 |  | none |  | 0.18, 0.01, -5.07 | onTable |
 | flick up-right | T | throw | 1.00 | 0.00, 2.50 | -0.11, 2.59 | 0.58 | -0.10, 2.59, -12.00 | stuck |
 | flick up-left | T | throw | 1.00 | 0.00, 2.50 | 0.08, 2.60 | 0.58 | 0.07, 2.60, -12.00 | stuck |

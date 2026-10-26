@@ -11,6 +11,8 @@ import { WALL, ROOM, ASCII, PALETTE, WORD_RULES } from '../config.js';
 const LOCK_GLOW = 0.28;
 const FINALE_GLOW = 0.6;
 const TELL_EASE = 6; // per second: how fast a decoy's shown tell follows the game's value
+const tilt = new THREE.Quaternion();
+const axis = new THREE.Vector3();
 
 // Meshes for every card: the nine letters, plus decoys as the wall sheds them
 // and removes them. `meshes` is a live array (the input picks from it).
@@ -76,11 +78,18 @@ export function createCardMeshes(scene, game) {
       mesh.quaternion.copy(body.rotation());
       if (card.decoy) continue;
 
-      const warmth = game.resolution.letters[id].warmth;
-      if (card.status === 'stuck' && warmth > 0) {
-        const a = WORD_RULES.stuckTremble * warmth;
-        mesh.position.x += a * Math.sin(seconds * 61 + id * 1.7);
-        mesh.position.y += a * Math.sin(seconds * 47 + id * 2.3);
+      // NON-PHYSICAL (4b), the warm hint, render only: the mesh trembles and
+      // leans toward its warm partner; the body does not move.
+      const info = game.resolution.letters[id];
+      if (info.warmth > 0 && !info.pulled && (card.status === 'stuck' || card.status === 'onTable' || card.status === 'flying')) {
+        const w = info.warmth;
+        const lean = game.warmLean(id);
+        const a = WORD_RULES.tremble * w;
+        mesh.position.x += a * Math.sin(seconds * 61 + id * 1.7) + lean.x * WORD_RULES.leanOffset * w;
+        mesh.position.y += a * Math.sin(seconds * 47 + id * 2.3) + lean.y * WORD_RULES.leanOffset * w;
+        mesh.position.z += lean.z * WORD_RULES.leanOffset * w;
+        tilt.setFromAxisAngle(axis.set(lean.z, 0, -lean.x).normalize(), WORD_RULES.leanTilt * w * (0.8 + 0.2 * Math.sin(seconds * 9 + id)));
+        if (lean.x || lean.z) mesh.quaternion.premultiply(tilt);
       }
       const glow = card.status === 'locked' ? LOCK_GLOW + (FINALE_GLOW - LOCK_GLOW) * game.finaleProgress : 0;
       for (const m of mesh.material) m.emissiveIntensity = glow;
