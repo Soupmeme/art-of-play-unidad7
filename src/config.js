@@ -12,7 +12,9 @@ export const WORLD = {
 
 export const CAMERA = {
   fov: 50, // vertical, degrees, at 16:9 and wider
-  minHorizontalHalfTan: 0.83, // narrower windows widen the vertical fov to keep this
+  minHorizontalHalfTan: 0.83, // narrower windows widen the vertical fov to keep this...
+  maxFov: 62, // ...up to here; narrower still (portrait), the camera pulls back instead
+  framingDistance: 5, // the hand's distance, used to work out how far to pull back
   // High enough that letters lying on the table are seen from above, not edge-on,
   // and the far table appears above the fan on screen, not behind it.
   position: { x: 0, y: 3.2, z: 0 },
@@ -282,7 +284,6 @@ export const FINALE = {
   center: { x: 0, y: 1.7, z: -8 }, // baseline centre of the ART OF PLAY line
   wordGap: 0.7, // space between words, card heights
   duration: 1.6, // seconds to glide into the line
-  hold: 4, // seconds the line is held lit (the reset is M4's quiet rule)
 };
 
 export const STATUS_RULES = {

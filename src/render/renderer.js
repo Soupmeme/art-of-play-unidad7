@@ -65,26 +65,37 @@ export function createRenderer(canvas) {
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // Narrow windows widen the vertical field of view so the sides stay in frame.
+  // Framing. Narrow windows widen the vertical field of view so the sides stay
+  // in frame, up to CAMERA.maxFov; narrower still (portrait), the camera pulls
+  // back instead, so the picture never turns fisheye.
+  let pullBack = 0; // extra distance for narrow (portrait) windows
+  let push = 0; // the opening's camera push
+  // The opening's camera push: the camera starts `offset` units further back
+  // and eases into place, still looking at the same point. Staging (4d).
+  const lookAt = new THREE.Vector3(CAMERA.lookAt.x, CAMERA.lookAt.y, CAMERA.lookAt.z);
+  function setPush(offset) {
+    push = offset;
+    const back = offset + pullBack;
+    camera.position.set(CAMERA.position.x, CAMERA.position.y + back * 0.25, CAMERA.position.z + back);
+    camera.lookAt(lookAt);
+  }
+
   function resize() {
     const { clientWidth: w, clientHeight: h } = canvas;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     const minHalfTan = CAMERA.minHorizontalHalfTan / camera.aspect;
-    const halfTan = Math.max(Math.tan(THREE.MathUtils.degToRad(CAMERA.fov / 2)), minHalfTan);
+    const maxHalfTan = Math.tan(THREE.MathUtils.degToRad(CAMERA.maxFov / 2));
+    const halfTan = Math.min(maxHalfTan, Math.max(Math.tan(THREE.MathUtils.degToRad(CAMERA.fov / 2)), minHalfTan));
     camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(halfTan));
+    // Past the widest lens, step back until the hand fits the width again.
+    const horizontalHalfTan = halfTan * camera.aspect;
+    pullBack = Math.max(0, CAMERA.framingDistance * (CAMERA.minHorizontalHalfTan / horizontalHalfTan - 1));
+    setPush(push);
     camera.updateProjectionMatrix();
   }
   resize();
   window.addEventListener('resize', resize);
-
-  // The opening's camera push: the camera starts `offset` units further back
-  // and eases into place, still looking at the same point. Staging (4d).
-  const lookAt = new THREE.Vector3(CAMERA.lookAt.x, CAMERA.lookAt.y, CAMERA.lookAt.z);
-  function setPush(offset) {
-    camera.position.set(CAMERA.position.x, CAMERA.position.y + offset * 0.25, CAMERA.position.z + offset);
-    camera.lookAt(lookAt);
-  }
 
   return {
     renderer,

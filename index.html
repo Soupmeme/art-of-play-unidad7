@@ -4,13 +4,33 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ART OF PLAY, a playable word (student concept)</title>
+    <meta
+      name="description"
+      content="A student concept: a homepage hero where the letters of ART OF PLAY are thrown cards on a magic stage. Not affiliated with Art of Play."
+    />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <main class="hero" id="hero">
-      <canvas id="stage" aria-label="ART OF PLAY: nine letter-cards to hold and throw"></canvas>
-      <div class="fade" id="fade" aria-hidden="true"></div>
-      <p class="credit">Student concept, not affiliated with Art of Play.</p>
+    <main>
+      <!-- The hero: the piece, full window. Nothing in it explains the method (rule 3). -->
+      <section class="hero" id="hero">
+        <canvas id="stage" aria-label="Nine letter-cards on a stage, to hold and throw with the mouse"></canvas>
+        <div class="fade" id="fade" aria-hidden="true"></div>
+        <p class="credit">Student concept, not affiliated with Art of Play.</p>
+      </section>
+
+      <!-- Below the fold: credits only, no instructions, no imitation of Art of Play's site (rule 6). -->
+      <footer class="colophon">
+        <p class="colophon-title">A playable word</p>
+        <p>
+          A student concept for Simulación, Unidad 7, Universidad Pontificia Bolivariana. Art of Play is the subject of
+          the study, not a partner; this page is not affiliated with Art of Play.
+        </p>
+        <p>
+          Set in Cinzel by Natanael Gama (SIL Open Font License). Built with Three.js and Rapier. After Ji Lee's
+          <em>Word as Image</em> and Daniel Shiffman's <em>The Nature of Code</em>.
+        </p>
+      </footer>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>

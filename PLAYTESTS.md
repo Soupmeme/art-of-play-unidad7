@@ -4,6 +4,8 @@ Kiwi fills this in. One section per session. Do not explain anything before the 
 
 Build under test: write the commit hash (`git log --oneline -1`). Open the page without `?dev`.
 
+Optional timings: open the page with `?log` (nothing changes on screen). It records, in this browser only, when each key event first happens, in seconds from the player's first touch: first hold, first throw, first stick, first knock-out, first warm pair, first pull, first decoy held, each word locked, the finale, each reset. Afterwards open the page with `?dev` and press "copy last playtest log" in the panel, then paste it into the session below.
+
 Times are from the moment the player first touches the mouse.
 
 ---

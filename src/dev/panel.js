@@ -5,7 +5,9 @@ import GUI from 'three/addons/libs/lil-gui.module.min.js';
 import { THROW, HOLD, AIR, CARD, EFFECTS, WORD_RULES, DECOYS, DECAY, RESET } from '../config.js';
 import { FAMILY } from '../letters/families.js';
 
-export function createDevPanel({ game, colliderDebug, view }) {
+import { loadPlaytestLogs } from './playtestLog.js';
+
+export function createDevPanel({ game, colliderDebug, view, wordDebug }) {
   const gui = new GUI({ title: 'dev' });
 
   const t = gui.addFolder('Throw mapping');
@@ -119,6 +121,27 @@ export function createDevPanel({ game, colliderDebug, view }) {
     },
   };
   gui.add(shots, 'save screenshot (PNG)');
+  const words = { 'show word radii and slots': false };
+  gui.add(words, 'show word radii and slots').onChange((v) => {
+    wordDebug.group.visible = v;
+  });
+  // The local playtest log (?log): copies the latest session for PLAYTESTS.md.
+  const logs = {
+    'copy last playtest log': async () => {
+      const sessions = loadPlaytestLogs();
+      const last = sessions[sessions.length - 1];
+      const text = last
+        ? [`Session ${last.started}`, ...last.events.map((e) => `${e.seconds.toFixed(1)} s  ${e.event}${e.detail ? ' ' + e.detail : ''}`)].join('\n')
+        : 'No playtest log in this browser.';
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        /* clipboard blocked: the log is printed to the console instead */
+      }
+      console.log(text);
+    },
+  };
+  gui.add(logs, 'copy last playtest log');
   gui.add(actions, 'show colliders').onChange((v) => {
     colliderDebug.lines.visible = v;
   });
@@ -140,10 +163,12 @@ export function describeState(game, rapierVersion, physics) {
     game.letters
       .map((l) => {
         const info = r.letters[l.id];
-        return `${l.char}: w ${info.warmth.toFixed(2)}${info.pulled ? ' PULL' : ''}`;
+        const slot = info.word ? `${info.word}[${info.slot}]` : '-';
+        return `${l.char} ${slot} w${info.warmth.toFixed(2)}${info.pulled ? ' PULL' : ''}`;
       })
       .join('  '),
   );
+  lines.push(`radii: hint ${WORD_RULES.hintRadius}  pull ${WORD_RULES.pullRadius}  snap ${WORD_RULES.snapDistance}  depth ${WORD_RULES.depthTolerance}  anchor required ${WORD_RULES.requireAnchor}`);
   lines.push(
     `play ${game.playTime.toFixed(0)} s  next shed ${game.shedder.next.toFixed(0)} s  decoys: ` +
       (game.decoys.map((x) => `${x.char}:${x.status} tell ${x.tell.toFixed(2)} erode ${x.erosion.toFixed(2)}`).join('  ') || 'none'),

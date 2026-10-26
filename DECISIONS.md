@@ -375,3 +375,30 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 ### Dev
 - "save screenshot (PNG)" in the dev panel renders a frame and downloads it, for the logbook's screenshots at rest, mid-flight, mid-pull and at the finale.
 - The finale sequence test now also checks that no decoys are left on the stage.
+
+## 2026-10-26, M6 (hero framing) and M7 (verification and docs)
+
+### The hero page
+- **Decision:** the piece fills the first screen (`100svh`, full width) and the page scrolls on to a short colophon: credits only (course, non-affiliation, typeface, tools, references), set in a plain system serif. No method is explained anywhere a player can see (rule 3), and nothing imitates Art of Play's real site (rule 6). The non-affiliation credit stays in the hero's corner, above the fade.
+- **Pause off-screen:** when the hero is scrolled out of view, the loop skips physics and drawing (IntersectionObserver), so the page costs nothing while reading the colophon.
+- **Loading:** the fade overlay starts black, so the page shows black (with the credit) while Rapier's WebAssembly loads, then the opening fades in. The bundle is still about 4.9 MB (1.8 MB gzipped), mostly Rapier; accepted (noted in M0).
+
+### Framing for narrow windows
+- **Measured (browser, real resize path):** wide and standard desktop shapes framed well; but a portrait window widened the lens to 92 degrees (800 x 1000) and a phone shape to 122 degrees, a fisheye picture with the stage in a thin band.
+- **Decision:** the vertical field of view is capped at 62 degrees; narrower than that, the camera steps back along its view until the hand fits the width again. Measured after the change: the hand spans the same share of the width (about -0.58 to 0.61 in screen units) from 21:9 down to a phone shape, with no fisheye; at a phone shape the backdrop just fits edge to edge. Phones remain outside the brief's target (desktop, mouse).
+
+### Debug overlay (brief 7.3)
+- The readout now shows, per letter: status, family, assigned word and slot, warmth, pull; the radii (hint, pull, snap, depth) and whether an anchor is required; D, the next decay event, fallen bricks and the quiet timer; the last throw's mapping values and the last contact. "show word radii and slots" draws the hint and pull rings around every letter in play and a cross with a snap ring on every open slot.
+
+### Playtest logger (brief section 8, optional)
+- `?log` (or `?dev`) records, in this browser's localStorage only and never sent anywhere, when key events first happen, in seconds from the player's first touch of the stage. Nothing shows on screen. "copy last playtest log" in the dev panel copies it for PLAYTESTS.md. Checked in the browser: a session recorded first touch, hold, throw, stick, knock-out, warm pair and decoy held, with times.
+
+### Smoke run (brief 7.6)
+- **How:** `aop.smoke(120)` keeps playing through the real pointer input for 120 s: it picks a card it can hold and throws it at a seeded random point of the backdrop, sometimes softly, sometimes as a drop, sometimes after carrying it, and counts page errors.
+- **Result:** in the Claude desktop app's built-in browser (Chromium), with real Rapier 0.21.0 WebAssembly: 120 s, 77 throws, **0 errors**, 7,219 physics steps (about 60 per second), 18 bricks fallen, decoys shed and eroded. This is a smoke check of the code, not a playtest.
+
+### Docs
+- `EXPLAINER.md`: the model in plain words, the code map, physics vs magic (4a to 4e), the collider approximation, the throw mapping, the word function, decay and resets, the parameter table (predictions marked draft, to be verified by Kiwi, each with a way to check), and what the tests do and do not cover.
+- `LOGBOOK.md`: references (the founders' quotes left for Kiwi to source), screenshot slots, a dated timeline linked to commits, the test reports, playtest links, and the self-evaluation skeleton (four criteria, empty scores, evidence lists, reflections left to Kiwi). Headings in English with Spanish in parentheses.
+- `README.md`: rewritten (run, controls, URL switches, documents, code map, credits). `PLAYTESTS.md`: how to use the playtest log.
+- Removed an unused value (`FINALE.hold`).
