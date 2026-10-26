@@ -7,14 +7,25 @@
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function createFlick({ canvas, camera, game }) {
-  return async function flick(id, { endX, endY, ms = 120, steps = 8, settle = 2500 } = {}) {
+  // carry: first move the letter slowly to just below the release point (as a
+  // deliberate player would), so the flick itself is a short straight upward one.
+  return async function flick(id, { endX, endY, ms = 120, steps = 8, settle = 2500, carry = false } = {}) {
     const rect = canvas.getBoundingClientRect();
-    // Press on ink, not on the body centre (which can fall in a counter, as in O).
+    // Press on ink, not on the body centre (which can fall in a counter, as in
+    // O). In the fan, later cards cover the right side of earlier ones, so
+    // press on the leftmost ink there.
     const body = game.bodies[id];
-    const box = game.forms[id].boxes.reduce((a, b) => (b.halfWidth * b.halfHeight > a.halfWidth * a.halfHeight ? b : a));
+    const boxes = game.forms[id].boxes;
+    let point;
+    if (game.letters[id].status === 'inFan') {
+      const box = boxes.reduce((a, b) => (b.x - b.halfWidth < a.x - a.halfWidth ? b : a));
+      point = { x: box.x - box.halfWidth + Math.min(0.08, box.halfWidth), y: box.y };
+    } else {
+      point = boxes.reduce((a, b) => (b.halfWidth * b.halfHeight > a.halfWidth * a.halfHeight ? b : a));
+    }
     const v = camera.position
       .clone()
-      .set(box.x, box.y, 0)
+      .set(point.x, point.y, 0)
       .applyQuaternion(body.rotation())
       .add(body.translation())
       .project(camera);
@@ -27,9 +38,22 @@ export function createFlick({ canvas, camera, game }) {
     canvas.dispatchEvent(new PointerEvent('pointerdown', event(sx, sy)));
     const grabbed = game.letters[id].status === 'held';
     await wait(300);
+    let fx = sx;
+    let fy = sy;
+    if (carry) {
+      const cx = ex;
+      const cy = Math.min(rect.bottom - 4, ey + rect.height * 0.25);
+      for (let i = 1; i <= 25; i++) {
+        await wait(24);
+        canvas.dispatchEvent(new PointerEvent('pointermove', event(sx + ((cx - sx) * i) / 25, sy + ((cy - sy) * i) / 25)));
+      }
+      await wait(150);
+      fx = cx;
+      fy = cy;
+    }
     for (let i = 1; i <= steps; i++) {
       await wait(ms / steps);
-      canvas.dispatchEvent(new PointerEvent('pointermove', event(sx + ((ex - sx) * i) / steps, sy + ((ey - sy) * i) / steps)));
+      canvas.dispatchEvent(new PointerEvent('pointermove', event(fx + ((ex - fx) * i) / steps, fy + ((ey - fy) * i) / steps)));
     }
     canvas.dispatchEvent(new PointerEvent('pointerup', event(ex, ey)));
     const plan = game.lastPlan;

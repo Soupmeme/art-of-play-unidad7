@@ -24,6 +24,27 @@ export function kerning(pair, capHeight = 1) {
   return ((fontData.kerning[pair] ?? 0) * capHeight) / fontData.capHeight;
 }
 
+// A word set in type: for each letter, its bounding-box centre relative to
+// the first letter's centre (dx), its centre's height above the baseline
+// (dy), and its half width. Uses the font's advances and kerning plus
+// `tracking` (extra space per gap, so neighbouring cards do not overlap).
+export function wordLayout(text, tracking = 0, capHeight = 1) {
+  let pen = 0;
+  const out = [];
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const { bounds } = glyphContours(char, capHeight);
+    out.push({
+      char,
+      cx: pen + (bounds.minX + bounds.maxX) / 2,
+      dy: (bounds.minY + bounds.maxY) / 2,
+      halfWidth: (bounds.maxX - bounds.minX) / 2,
+    });
+    if (i < text.length - 1) pen += advanceWidth(char, capHeight) + kerning(char + text[i + 1], capHeight) + tracking;
+  }
+  return out.map((l) => ({ char: l.char, dx: l.cx - out[0].cx, dy: l.dy, halfWidth: l.halfWidth }));
+}
+
 // All closed contours of a glyph (outer outlines and holes) as point lists.
 export function glyphContours(char, capHeight = 1) {
   const shapes = font.generateShapes(char, sizeForCapHeight(capHeight));

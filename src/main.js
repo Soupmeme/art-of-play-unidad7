@@ -38,7 +38,7 @@ async function main() {
     const frameSeconds = Math.min((now - last) / 1000, 0.25);
     last = now;
     advance(frameSeconds, hooks);
-    syncLetterMeshes(letterMeshes, game);
+    syncLetterMeshes(letterMeshes, game, now / 1000);
     typeSurfaces.update(now / 1000);
     colliderDebug.update(physics.world);
     view.render();

@@ -32,6 +32,7 @@ export function createLetterState(index) {
     restTime: 0, // seconds spent below the rest thresholds
     airborne: false, // released and not yet touching anything (Curve acts only then)
     stuckTo: null, // brick index while stuck
+    lockedWord: null, // 'ART', 'OF' or 'PLAY' once its word has locked
   };
 }
 

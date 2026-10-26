@@ -2,8 +2,7 @@
 // config objects the game reads every step, so changes apply live.
 
 import GUI from 'three/addons/libs/lil-gui.module.min.js';
-import { THROW, HOLD, AIR, CARD, EFFECTS } from '../config.js';
-import { STATUS } from '../letters/letters.js';
+import { THROW, HOLD, AIR, CARD, EFFECTS, WORD_RULES } from '../config.js';
 import { FAMILY } from '../letters/families.js';
 
 export function createDevPanel({ game, colliderDebug }) {
@@ -56,8 +55,19 @@ export function createDevPanel({ game, colliderDebug }) {
   e.add(EFFECTS.ripple, 'strength', 0, 8, 0.1).name('ripple strength');
   e.add(EFFECTS.ripple, 'wallShake').name('ripple wall shake');
 
+  const w = gui.addFolder('Words').close();
+  w.add(WORD_RULES, 'hintRadius', 0.5, 5, 0.1);
+  w.add(WORD_RULES, 'pullRadius', 0.3, 4, 0.1);
+  w.add(WORD_RULES, 'depthTolerance', 0.1, 3, 0.1);
+  w.add(WORD_RULES, 'snapDistance', 0.02, 0.5, 0.01);
+  w.add(WORD_RULES, 'alignAngle', 2, 45, 1);
+  w.add(WORD_RULES, 'pullStiffness', 5, 120, 1);
+  w.add(WORD_RULES, 'pullDamping', 0.2, 2, 0.05);
+  w.add(WORD_RULES, 'trembleKick', 0, 10, 0.1);
+  w.add(WORD_RULES, 'leanAccel', 0, 6, 0.1);
+
   const actions = {
-    'return letters to fan': () => game.letters.forEach((l) => l.status !== STATUS.held && game.placeInFan(l)),
+    'return letters to fan': () => game.returnAllToFan(),
     'show colliders': false,
   };
   gui.add(actions, 'return letters to fan');
@@ -72,6 +82,20 @@ export function createDevPanel({ game, colliderDebug }) {
 export function describeState(game, rapierVersion, physics) {
   const lines = [`rapier ${rapierVersion}  steps ${physics.stepCount}  bricks ${game.bricks.length}`];
   lines.push(game.letters.map((l) => `${l.char}(${l.family[0]}):${l.status}`).join(' '));
+  const r = game.resolution;
+  lines.push(
+    Object.entries(r.words)
+      .map(([w, x]) => `${w} ${x.state}${x.anchor !== null ? ` anchor ${game.letters[x.anchor].char}` : ''}${x.leader !== null ? ` leader ${game.letters[x.leader].char}` : ''}`)
+      .join('  |  '),
+  );
+  lines.push(
+    game.letters
+      .map((l) => {
+        const info = r.letters[l.id];
+        return `${l.char}: w ${info.warmth.toFixed(2)}${info.pulled ? ' PULL' : ''}`;
+      })
+      .join('  '),
+  );
   const c = game.lastContact;
   if (c) {
     const parts = [`last contact ${c.letter}: ${c.speed.toFixed(1)} u/s`];

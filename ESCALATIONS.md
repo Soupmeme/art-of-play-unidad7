@@ -20,12 +20,13 @@ Items that could change the concept or the grade (brief, section 3). Status: ope
 ## E5. Table, rails and brick colliders under the letters-only rule
 - **Raised:** 2026-10-25. **Resolution:** Kiwi agreed: felt ground plane, rails of letter-bricks, box colliders under letter-shaped bricks. **Status:** resolved.
 
-## Tuning watch list (not escalations yet)
-- quietSeconds at 25 s may wipe progress for a player who pauses to think.
-- Ripple restitution: O and Y may bounce out of a pull too fast to be captured.
-- Discoverability: whether a fresh player brings a correct pair close enough to see a warm tremble within about two minutes.
-
 ## E6. Wall and side lanes not built from letter-bricks
 - **Raised:** 2026-10-25 by Kiwi, who found the letter-brick wall and rails too literal.
 - **Resolution:** Kiwi directed solid oxblood surfaces with an animated text-mode type pattern of ART OF PLAY. Amendment to rule 1 recorded in CLAUDE.md; details and the M4 decay consequence in DECISIONS.md.
 - **Status:** resolved.
+
+## Tuning watch list (not escalations yet)
+- quietSeconds at 25 s may wipe progress for a player who pauses to think.
+- Ripple restitution: O and Y may bounce out of a pull too fast to be captured. (M3: in scripted runs a hard O and Y were captured beside their anchors.)
+- Discoverability: whether a fresh player brings a correct pair close enough to see a warm tremble within about two minutes.
+- Throw spin (M3): sideways flick speed sets spin, so aiming far to the side by flicking diagonally adds spin, which bends R and P. Watch whether players learn to carry first and flick straight; if not, consider spin from flick curvature (DECISIONS, M3).

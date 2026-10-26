@@ -113,8 +113,8 @@ export const THROW = {
   minLaunch: 6, // units/s at the lowest throwing power
   maxLaunch: 15, // units/s at full power
   gravityComp: 1.1, // aims as if gravity were this much stronger, to offset drag
-  spinGain: 4, // rad/s per screen-height/s of sideways pointer motion
-  maxSpin: 18, // rad/s
+  spinGain: 2, // rad/s per screen-height/s of sideways pointer motion
+  maxSpin: 9, // rad/s
   aimInset: 0.3, // keeps the aim point inside the wall
 };
 
@@ -127,8 +127,8 @@ export const EFFECTS = {
     bite: 0.012, // how far the embedded letter sinks into the wall face
   },
   curve: {
-    gain: 0.09, // sideways acceleration per (rad/s of spin x units/s of speed)
-    biasSpin: -7, // rad/s every Curve throw starts with (clockwise: hooks right)
+    gain: 0.12, // sideways acceleration per (rad/s of spin x units/s of speed)
+    biasSpin: -5, // rad/s every Curve throw starts with (clockwise: hooks right)
   },
   ripple: {
     restitution: 0.5, // bounce of O and Y (other letters: CARD.restitution)
@@ -142,6 +142,37 @@ export const EFFECTS = {
     shakeRadius: 1.0,
     shakeAmount: 0.35,
   },
+};
+
+// Word resolution (brief 5.5). The word function is pure (src/words/resolve.js);
+// the pull is NON-PHYSICAL (4b). Distances in card heights.
+export const WORD_RULES = {
+  hintRadius: 2.5, // correct neighbours closer than this tremble (warm)
+  pullRadius: 1.5, // ... closer than this are drawn into their slots
+  depthTolerance: 1.0, // pull only when the pair is roughly at the same depth
+  snapDistance: 0.12, // every member within this of its slot (and aligned) locks the word
+  alignAngle: 15, // degrees: how upright and camera-facing a member must be to lock
+  tracking: 0.08, // extra space between letters in a word, so cards do not overlap
+  wallGap: 0.02, // free members of an anchored word hover this far in front of the wall
+  tableBaseline: 0.02, // baseline of a word with no anchor: it stands on the table
+  // Pull: a damped spring toward the slot, plus a lift that cancels gravity.
+  pullStiffness: 40, // 1/s^2
+  pullDamping: 0.9, // damping ratio (1 = critically damped)
+  pullMaxAccel: 80, // units/s^2
+  pullUprightGain: 6,
+  pullUprightBlend: 8,
+  // Warm hint on free letters: a rattle plus a lean toward the partner.
+  trembleKick: 3.0, // rad/s per step at full warmth (averages out to a small wobble)
+  trembleFrequency: 9, // Hz
+  leanAccel: 1.2, // units/s^2 toward the partner at full warmth
+  stuckTremble: 0.006, // units: render-only tremble of a stuck letter at full warmth
+};
+
+export const FINALE = {
+  center: { x: 0, y: 1.7, z: -8 }, // baseline centre of the ART OF PLAY line
+  wordGap: 0.7, // space between words, card heights
+  duration: 1.6, // seconds to glide into the line
+  hold: 4, // seconds the line is held lit (the reset is M4's quiet rule)
 };
 
 export const STATUS_RULES = {

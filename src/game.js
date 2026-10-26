@@ -1,16 +1,18 @@
 // The game state: letters, wall and room, and what happens each physics step.
 // Rendering and input live elsewhere; this module only touches bodies and data.
 
-import { STATUS, HOLDABLE, createLetters, wordStarts } from './letters/letters.js';
+import { STATUS, HOLDABLE, WORDS, createLetters, wordStarts } from './letters/letters.js';
 import { FAMILY } from './letters/families.js';
-import { letterForm } from './letters/glyphs.js';
+import { letterForm, wordLayout } from './letters/glyphs.js';
 import { fanLayout } from './letters/fan.js';
 import { stickCheck, embedPose, curveAcceleration, rippleKicks, rippleShake } from './letters/effects.js';
+import { resolveWords, letterSnapshot } from './words/resolve.js';
+import { finaleLayout, finalePose } from './staging/finale.js';
 import { layoutWall, createBrickBodies } from './wall/wall.js';
 import { createRoom } from './physics/room.js';
 import { applyAirDrag, steerArrive, steerUpright } from './physics/forces.js';
 import { createRng, deriveSeed } from './core/rng.js';
-import { CARD, AIR, ROOM, WALL, FAN, HOLD, EFFECTS, STATUS_RULES, WORLD } from './config.js';
+import { CARD, AIR, ROOM, WALL, FAN, HOLD, EFFECTS, WORD_RULES, FINALE, STATUS_RULES, WORLD } from './config.js';
 
 // Collision groups, Rapier's packed form: (membership << 16) | filter.
 // NON-PHYSICAL (4d): letters resting in the fan only touch the room, so a
@@ -102,6 +104,18 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   const brickStress = new Float32Array(bricks.length); // read by the decay scheduler (M4)
   const impacts = []; // recent wall impacts, for the renderer: { kind, x, y, time }
 
+  // Words: typeset layout per word, the latest resolution, locks and finale.
+  const layout = Object.fromEntries(WORDS.map((w) => [w.text, wordLayout(w.text, WORD_RULES.tracking)]));
+  const finaleTargets = finaleLayout(layout, FINALE);
+  const leaders = {};
+  const lockedWords = [];
+  let resolution = resolveWords(snapshots(), { params: WORD_RULES, layout });
+  let finale = null; // { start, from: [pose per letter], to: [pose per letter] }
+
+  function snapshots() {
+    return letters.map((l) => letterSnapshot(l, bodies[l.id].translation(), bodies[l.id].rotation()));
+  }
+
   // Side boundary x at a given depth (the rails converge toward the camera).
   function sideLimitAt(z) {
     const t = clamp((z - ROOM.frontZ) / (WALL.z - ROOM.frontZ), 0, 1);
@@ -169,6 +183,16 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     letter.status = STATUS.inFan;
     letter.restTime = 0;
     letter.airborne = false;
+    letter.lockedWord = null;
+  }
+
+  // Dev only for now (M4's reset will stage this): every letter back in the
+  // hand, no words locked, no finale.
+  function returnAllToFan() {
+    if (held) return;
+    letters.forEach(placeInFan);
+    lockedWords.length = 0;
+    finale = null;
   }
 
   // Test and dev helper only (never used in play): puts a letter at a pose as a
@@ -247,8 +271,11 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
 
     if (letter.family === FAMILY.stick && other.type === 'brick') {
       const check = stickCheck(v, body.rotation(), EFFECTS.stick);
-      lastContact = { letter: letter.char, ...check };
-      if (check.stick) {
+      // Lockout mitigation (a): a letter being pulled by a correct neighbour
+      // does not embed; the pull wins.
+      const pulled = resolution.letters[letter.id].pulled;
+      lastContact = { letter: letter.char, ...check, pulled };
+      if (check.stick && !pulled) {
         embed(letter, other.index);
         kind = 'stick';
       }
@@ -272,10 +299,106 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     return { type: 'room' };
   }
 
+  // NON-PHYSICAL (4b), the word pull: a damped spring toward the slot, plus a
+  // lift that cancels gravity, plus a gentle turn to stand upright facing the
+  // camera. Deliberately stronger than gravity near correct neighbours.
+  function applyPull(body, target, dt) {
+    const p = body.translation();
+    const v = body.linvel();
+    const k = WORD_RULES.pullStiffness;
+    const c = 2 * Math.sqrt(k) * WORD_RULES.pullDamping;
+    let a = { x: k * (target.x - p.x) - c * v.x, y: k * (target.y - p.y) - c * v.y, z: k * (target.z - p.z) - c * v.z };
+    const mag = Math.hypot(a.x, a.y, a.z);
+    if (mag > WORD_RULES.pullMaxAccel) {
+      const s = WORD_RULES.pullMaxAccel / mag;
+      a = { x: a.x * s, y: a.y * s, z: a.z * s };
+    }
+    a.y -= WORLD.gravity.y; // cancel gravity
+    const m = body.mass() * dt;
+    body.applyImpulse({ x: a.x * m, y: a.y * m, z: a.z * m }, true);
+    steerUpright(body, { uprightGain: WORD_RULES.pullUprightGain, uprightBlend: WORD_RULES.pullUprightBlend }, dt);
+  }
+
+  // NON-PHYSICAL (4b), the warm hint on a free letter: a small rattle whose
+  // size grows with warmth, and a lean (a weak push) toward its partners.
+  function applyWarm(letter, body, warmth, dt) {
+    const kick = WORD_RULES.trembleKick * warmth * Math.sin(2 * Math.PI * WORD_RULES.trembleFrequency * time + phases[letter.id] * 5);
+    const w = body.angvel();
+    body.setAngvel({ x: w.x + kick, y: w.y, z: w.z + kick * 0.5 }, true);
+    const p = body.translation();
+    let lean = { x: 0, z: 0 };
+    for (const word of Object.values(resolution.words)) {
+      for (const pair of word.pairs) {
+        if (pair.warmth <= 0 || (pair.a !== letter.id && pair.b !== letter.id)) continue;
+        const q = bodies[pair.a === letter.id ? pair.b : pair.a].translation();
+        const d = Math.hypot(q.x - p.x, q.z - p.z) || 1;
+        lean = { x: lean.x + ((q.x - p.x) / d) * pair.warmth, z: lean.z + ((q.z - p.z) / d) * pair.warmth };
+      }
+    }
+    const m = body.mass() * dt * WORD_RULES.leanAccel;
+    body.applyImpulse({ x: lean.x * m, y: 0, z: lean.z * m }, true);
+  }
+
+  // A word that is ready locks: every member, the anchor included, is set
+  // exactly in its slot, upright, and frozen there (kinematic), immune from
+  // then on to holding, ripples and decay. Straightening the anchor matters:
+  // a Stick letter keeps the spin it arrived with, sometimes upside down.
+  function lockWord(text, word) {
+    word.members.forEach((id, i) => {
+      const letter = letters[id];
+      const body = bodies[id];
+      unstick(letter);
+      body.setBodyType(rapier.RigidBodyType.KinematicPositionBased, true);
+      body.setLinvel(ZERO, true);
+      body.setAngvel(ZERO, true);
+      body.setTranslation(word.slots[i], true);
+      body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
+      letter.status = STATUS.locked;
+      letter.lockedWord = text;
+      letter.airborne = false;
+    });
+    lockedWords.push({ word: text, time });
+    if (lockedWords.length === WORDS.length) startFinale();
+  }
+
+  function startFinale() {
+    const to = [];
+    for (const { text } of WORDS) {
+      resolution.words[text].members.forEach((id, i) => {
+        to[id] = { position: finaleTargets[text][i], rotation: { x: 0, y: 0, z: 0, w: 1 } };
+      });
+    }
+    finale = {
+      start: time,
+      from: letters.map((l) => ({ position: bodies[l.id].translation(), rotation: bodies[l.id].rotation() })),
+      to,
+    };
+  }
+
   function beforeStep(dt) {
     time += dt;
+    if (finale) {
+      for (const letter of letters) {
+        const pose = finalePose(finale.from[letter.id], finale.to[letter.id], time - finale.start, FINALE.duration);
+        bodies[letter.id].setNextKinematicTranslation(pose.position);
+        bodies[letter.id].setNextKinematicRotation(pose.rotation);
+      }
+      return;
+    }
+    resolution = resolveWords(snapshots(), { params: WORD_RULES, layout, previousLeaders: leaders });
+    for (const [text, word] of Object.entries(resolution.words)) leaders[text] = word.leader;
+
     for (const letter of letters) {
       const body = bodies[letter.id];
+      const info = resolution.letters[letter.id];
+      if (letter.status === STATUS.flying || letter.status === STATUS.onTable) {
+        if (info.pulled) {
+          letter.airborne = false; // the pull takes over from the Curve
+          applyPull(body, info.target, dt);
+        } else if (info.warmth > 0) {
+          applyWarm(letter, body, info.warmth, dt);
+        }
+      }
       if (letter.status === STATUS.inFan) {
         const pose = fan[letter.id];
         const wave = Math.sin((2 * Math.PI * time) / FAN.breathePeriod + phases[letter.id]);
@@ -302,6 +425,10 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   }
 
   function afterStep(dt) {
+    if (finale) {
+      physics.eventQueue.drainCollisionEvents(() => {});
+      return;
+    }
     // Contacts that started this step; one per letter, the first one seen.
     const contacts = new Map();
     physics.eventQueue.drainCollisionEvents((h1, h2, started) => {
@@ -335,6 +462,10 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
         letter.restTime = 0;
       }
     }
+
+    for (const [text, word] of Object.entries(resolution.words)) {
+      if (word.state === 'ready' && word.members.every((id) => letters[id].status !== STATUS.held)) lockWord(text, word);
+    }
   }
 
   return {
@@ -353,6 +484,7 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     setHoldTarget,
     release,
     placeInFan,
+    returnAllToFan,
     debugPlace,
     beforeStep,
     afterStep,
@@ -365,6 +497,17 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     get lastContact() {
       return lastContact;
     },
+    get resolution() {
+      return resolution;
+    },
+    get lockedWords() {
+      return lockedWords;
+    },
+    // 0 before the finale, rising to 1 as the line forms.
+    get finaleProgress() {
+      return finale ? Math.min(1, (time - finale.start) / FINALE.duration) : 0;
+    },
+    layout,
     get time() {
       return time;
     },

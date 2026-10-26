@@ -144,9 +144,9 @@ describe('effects depend on how you throw', () => {
   });
 
   it('a Curve letter flicked left flies near straight, flicked right hooks harder', async () => {
-    const left = await runThrow({ letterId: 1, aim: AIM, pointer: { vx: -1.75, vy: -3 } });
+    const left = await runThrow({ letterId: 1, aim: AIM, pointer: { vx: -2.5, vy: -3 } });
     const straight = await runThrow({ letterId: 1, aim: AIM, pointer: FULL });
-    const right = await runThrow({ letterId: 1, aim: AIM, pointer: { vx: 1.75, vy: -3 } });
+    const right = await runThrow({ letterId: 1, aim: AIM, pointer: { vx: 2.5, vy: -3 } });
     for (const [name, r] of [['left', left], ['straight', straight], ['right', right]]) {
       rows.push(`| 1 | R | curve | ${name} flick: hook grows from left to right | ${f(r.wallHit?.x)}, ${f(r.wallHit?.y)} | ${r.status} | ${f(r.rest.x)}, ${f(r.rest.y)}, ${f(r.rest.z)} |`);
     }

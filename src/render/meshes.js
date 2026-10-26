@@ -5,13 +5,14 @@
 import * as THREE from 'three';
 import { createGlyphAtlas, createBannerMask } from './typeTextures.js';
 import { createAsciiMaterial } from './asciiMaterial.js';
-import { WALL, ROOM, ASCII, PALETTE } from '../config.js';
+import { WALL, ROOM, ASCII, PALETTE, WORD_RULES } from '../config.js';
 
 export function createLetterMeshes(scene, game) {
-  // Extrude groups: 0 = front and back faces, 1 = the cut edge.
-  const face = new THREE.MeshStandardMaterial({ color: PALETTE.ivory, roughness: 0.55 });
-  const edge = new THREE.MeshStandardMaterial({ color: PALETTE.oxblood, roughness: 0.7 });
+  // Extrude groups: 0 = front and back faces, 1 = the cut edge. Each letter
+  // has its own materials so a locked word can glow on its own.
   return game.letters.map((letter, i) => {
+    const face = new THREE.MeshStandardMaterial({ color: PALETTE.ivory, roughness: 0.55, emissive: PALETTE.glow, emissiveIntensity: 0 });
+    const edge = new THREE.MeshStandardMaterial({ color: PALETTE.oxblood, roughness: 0.7, emissive: PALETTE.glow, emissiveIntensity: 0 });
     const mesh = new THREE.Mesh(game.forms[i].geometry, [face, edge]);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -21,11 +22,29 @@ export function createLetterMeshes(scene, game) {
   });
 }
 
-export function syncLetterMeshes(meshes, game) {
+const LOCK_GLOW = 0.28;
+const FINALE_GLOW = 0.6;
+
+// Copies body poses to meshes. Two render-only touches:
+//   - locked letters glow (emissive, the one accent colour), more in the finale;
+//   - NON-PHYSICAL (4b): a stuck letter that is warm trembles a few
+//     millimetres on screen; its body, welded to the wall, does not move.
+export function syncLetterMeshes(meshes, game, seconds) {
   meshes.forEach((mesh, i) => {
     const body = game.bodies[i];
+    const letter = game.letters[i];
     mesh.position.copy(body.translation());
     mesh.quaternion.copy(body.rotation());
+
+    const warmth = game.resolution.letters[i].warmth;
+    if (letter.status === 'stuck' && warmth > 0) {
+      const a = WORD_RULES.stuckTremble * warmth;
+      mesh.position.x += a * Math.sin(seconds * 61 + i * 1.7);
+      mesh.position.y += a * Math.sin(seconds * 47 + i * 2.3);
+    }
+
+    const glow = letter.status === 'locked' ? LOCK_GLOW + (FINALE_GLOW - LOCK_GLOW) * game.finaleProgress : 0;
+    for (const m of mesh.material) m.emissiveIntensity = glow;
   });
 }
 

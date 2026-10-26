@@ -190,3 +190,44 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 - `game.debugPlace` (tests and dev only, never in play) puts a letter at a pose to set up scenarios. The scenario runner takes a `setup(game)` callback and returns the game for inspection.
 - `test/effects.test.js` covers the table, each pure rule, one scripted throw per letter with the rule's expected outcome, soft vs hard Stick, left/straight/right Curve, Ripple nudging vs a control, and Ripple wall stress. It writes `docs/reports/effects.md`.
 - Dev panel: "Letter effects" folder; the readout shows each letter's family initial and the last contact (speed, approach, face, stick or bounce, ripple).
+
+## 2026-10-25, M3 (word resolution)
+
+### The word function
+- **Decision:** `src/words/resolve.js`, a pure function from plain letter data (built by `letterSnapshot`, the same factory the runtime uses) to per-word state (`cold`, `warm`, `pulling`, `ready`, `locked`, `unresolvable`), slot positions, anchor or leader, and per-letter warmth, pull and target. Rules are written at the top of the file in plain words.
+- **Typesetting:** slots are set with Cinzel's advance widths and kerning plus 0.08 tracking (`wordLayout` in `glyphs.js`). Without the tracking, neighbouring cards overlap slightly (R and T do) and their colliders fight the pull. Slots share a baseline taken from the anchor or leader.
+- **Duplicate A:** a locked word keeps its A; otherwise the assignment with the lower total of "distance from ART's A to R" plus "distance from PLAY's A to the nearer of L and Y" wins; ties put the lower id in ART. Letters out of play count as very far.
+- **Warmth:** 0 at hintRadius (2.5), rising linearly to 1 at the typeset spacing.
+- **Pull:** in order, under pullRadius (1.5) and within 1.0 in depth.
+- **Anchors:** a stuck member anchors the word (lowest slot if several). Further stuck members must already be within snapDistance of their slots, otherwise `unresolvable` and no pull (warmth still shows). Free members of an anchored word hover 0.02 in front of the wall.
+- **Leaders:** with no anchor, the pulled member nearest the group's centroid leads, kept from step to step while it still qualifies (so targets do not jump); the word stands on the table (baseline 0.02).
+- **Ready to lock:** every member in play, every pair in order, every free member within 0.12 of its slot and within 15 degrees of upright and facing the camera.
+
+### Warm hint (4b)
+- **Free letters:** a rattle (angular velocity kicks of 3.0 x warmth rad/s per step, oscillating at 9 Hz, so it averages out to a wobble of a few degrees) and a lean (a 1.2 x warmth units/s^2 push toward the partner, weaker than friction, so letters creep only while rattling).
+- **Stuck letters:** render-only tremble of up to 6 mm on screen, as agreed (flag 4).
+- Not glowing: glow is reserved for locked words.
+
+### Pull (4b)
+- **Decision:** damped spring toward the slot (stiffness 40, damping ratio 0.9, acceleration capped at 80) plus a lift that cancels gravity, plus a gentle upright turn (gain 6). A pulled Curve letter stops curving. Pulled letters stay holdable (the player can pull one back out).
+- **Lockout mitigation (a), now in:** a Stick letter under a pull does not embed. Measured: a T thrown hard at its slot beside a stuck A is caught and locks ART instead of sticking.
+
+### Lock (4b)
+- **Decision:** every member, the anchor included, is set exactly in its slot, upright, and made kinematic: frozen in place, immune to holding, ripples and (M4) decay. Locked letters glow (emissive 0.28, the amber accent).
+- **Alternatives:** fixed joints between members, as the brief suggests. A word standing on the table is a row of thin plates on their edges and would topple; freezing is simpler and equally explainable ("a locked word is set in type").
+- **Change found in the browser:** at first the anchor kept its stuck tilt; a Stick letter arrives spinning, so an F locked nearly upside down inside OF. The lock now straightens it.
+
+### Finale (4d)
+- **Decision:** when the third word locks, all nine letters glide kinematically (1.6 s, smoothstep) into one line, ART OF PLAY, baseline centred at (0, 1.7, -8), word gap 0.7, upright and facing the camera, glow rising to 0.6. It holds; the reset after it is M4's quiet rule.
+
+### Throw spin retuned (found in the browser)
+- **Observation:** to aim at a spot far to the side, a scripted flick moved diagonally, and its sideways speed maxed out the spin. R then hooked several units off, the next Stick letter stuck in the wrong place, and ART was locked out. A player who first carries the letter under the target and then flicks straight up avoids this, but the spin was too touchy.
+- **Decision:** spinGain 4 to 2, maxSpin 18 to 9 rad/s. To keep R and P visibly curving, curve gain 0.09 to 0.12 and built-in spin -7 to -5: a straight flick still hooks about 1.3 units right, a firm left flick (2.5 screen heights/s sideways) cancels it, a firm right flick hooks about 2.9.
+- **Open for playtests:** whether players learn "carry, then flick straight". An alternative, if they do not: take spin from the flick's curvature (how much the flick bends) instead of its sideways speed, so straight diagonal flicks carry no spin.
+
+### Verified sequences (headless and in the browser)
+- `test/sequences.test.js` (report `docs/reports/words.md`): OF, ART and PLAY completed deliberately one after another, then the finale; a word with no anchor locks standing on the table; wrong order never pulls or locks; A and T stuck 1.2 apart leave ART unresolvable and R unpulled.
+- In the built-in browser, through the real pointer input (scripted with `aop.flick(..., { carry: true })`), the full phrase was completed and the finale played.
+
+### Playtest readiness
+- `PLAYTESTS.md` holds the session template (brief section 8). The optional local event logger is not built yet.
