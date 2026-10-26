@@ -6,8 +6,6 @@
 //   - Erosion: pieces drop out in a blocky pattern as `erosion` goes 0 to 1.
 // Face and edge materials share the same vertex code, so the mesh never tears.
 
-import * as THREE from 'three';
-
 const HASH = /* glsl */ `
 float decoyHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 `;
@@ -19,8 +17,11 @@ export function createDecoyMaterials({ face, edge, seed }) {
     uErosion: { value: 0 },
     uSeed: { value: seed },
   };
+  // Chained after the card's own patch (face and back textures).
   const patch = (material) => {
-    material.onBeforeCompile = (shader) => {
+    const cardPatch = material.onBeforeCompile;
+    material.onBeforeCompile = (shader, renderer) => {
+      cardPatch.call(material, shader, renderer);
       Object.assign(shader.uniforms, uniforms);
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>\nuniform float uTime;\nuniform float uTell;\nuniform float uSeed;\nvarying vec3 vDecoyLocal;\n${HASH}`)
@@ -36,8 +37,8 @@ export function createDecoyMaterials({ face, edge, seed }) {
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>\nuniform float uTell;\nuniform float uErosion;\nvarying vec3 vDecoyLocal;\n${HASH}`)
         .replace(
-          '#include <map_fragment>',
-          `#include <map_fragment>
+          '#include <color_fragment>',
+          `#include <color_fragment>
           if (decoyHash(floor(vDecoyLocal.xy * 14.0) + 3.0) < uErosion) discard;
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.58, 0.57, 0.54), 0.35 * uTell);`,
         );
@@ -47,9 +48,3 @@ export function createDecoyMaterials({ face, edge, seed }) {
   return { materials: [patch(face), patch(edge)], uniforms };
 }
 
-export function decoyBaseMaterials(palette) {
-  return {
-    face: new THREE.MeshStandardMaterial({ color: palette.ivory, roughness: 0.6 }),
-    edge: new THREE.MeshStandardMaterial({ color: palette.oxblood, roughness: 0.7 }),
-  };
-}

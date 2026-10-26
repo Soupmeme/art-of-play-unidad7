@@ -23,7 +23,8 @@ export function createRenderer(canvas) {
   // Stage lighting: a dim house, a key spot from the rig above, two washes on
   // the backdrop, and a soft front fill (the footlights) so the hand of cards
   // at rest always reads.
-  scene.add(new THREE.HemisphereLight(0xffe9d0, PALETTE.house, 0.35));
+  const house = new THREE.HemisphereLight(0xffe9d0, PALETTE.house, 0.35);
+  scene.add(house);
 
   const key = new THREE.SpotLight(0xfff0d8, 3.4, 0, 0.62, 0.55, 0);
   key.position.set(0, 11, -3.5);
@@ -35,12 +36,19 @@ export function createRenderer(canvas) {
   key.shadow.camera.far = 30;
   scene.add(key, key.target);
 
-  for (const side of [-1, 1]) {
+  const washes = [-1, 1].map((side) => {
     const wash = new THREE.SpotLight(side < 0 ? 0xffd7b0 : 0xf3c6c9, 1.3, 0, 0.5, 0.85, 0);
     wash.position.set(side * 7, 7.5, -5.5);
     wash.target.position.set(-side * 1.5, 2.6, -12);
     scene.add(wash, wash.target);
-  }
+    return wash;
+  });
+
+  // A follow spot from the booth behind the audience: it finds the card in the
+  // hand, and in the finale it lights the line. Off until the cues ask for it.
+  const follow = new THREE.SpotLight(0xfff6e6, 0, 0, 0.16, 0.6, 0);
+  follow.position.set(0, 7.5, 3);
+  scene.add(follow, follow.target);
 
   const footlights = new THREE.DirectionalLight(0xffd9a6, 0.55);
   footlights.position.set(0, 0.4, 2);
@@ -78,5 +86,12 @@ export function createRenderer(canvas) {
     camera.lookAt(lookAt);
   }
 
-  return { renderer, scene, camera, setPush, render: () => renderer.render(scene, camera) };
+  return {
+    renderer,
+    scene,
+    camera,
+    setPush,
+    lights: { house, key, washes, footlights, follow },
+    render: () => renderer.render(scene, camera),
+  };
 }

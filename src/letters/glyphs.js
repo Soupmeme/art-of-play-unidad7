@@ -147,6 +147,17 @@ export function letterForm(char, { capHeight = 1, depth = 0.03, colliderCell = 0
   geometry.translate(-cx, -cy, -depth / 2);
   geometry.computeVertexNormals();
 
+  // Card UVs: a square of side uvSpan centred on the letter, so the face and
+  // back textures (render/cardTextures.js) line up with the letterform.
+  const uvSpan = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) * 1.08;
+  const pos = geometry.attributes.position;
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    uv[i * 2] = pos.getX(i) / uvSpan + 0.5;
+    uv[i * 2 + 1] = pos.getY(i) / uvSpan + 0.5;
+  }
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+
   const boxes = colliderCell
     ? rasterBoxes(contours, bounds, colliderCell).map((b) => ({ ...b, x: b.x - cx, y: b.y - cy }))
     : [];
@@ -160,6 +171,7 @@ export function letterForm(char, { capHeight = 1, depth = 0.03, colliderCell = 0
     geometry,
     boxes,
     outline,
+    uvSpan,
     depth,
     width: bounds.maxX - bounds.minX,
     height: bounds.maxY - bounds.minY,

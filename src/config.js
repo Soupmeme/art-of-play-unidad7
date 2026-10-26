@@ -264,6 +264,20 @@ export const RESET = {
   fadeOut: 0.9, // seconds to fade to black before the new round's opening
 };
 
+// Lighting cues (render/lighting.js): levels as fractions of the base rig.
+export const STAGE_LIGHTS = {
+  rate: 3, // per second: how quickly lights ease to a new level
+  holdFollow: 1.8, // follow spot on a held card
+  holdAngle: 0.13,
+  finaleFollow: 3.2, // follow spot on the finished line
+  finaleAngle: 0.3,
+  finaleTarget: { x: 0, y: 2.2, z: -8 },
+  finaleHouse: 0.3, // the house dims to 30%...
+  finaleKey: 0.35, // ...the key to 35%...
+  finaleWash: 0.3, // ...the backdrop washes to 30%...
+  finaleFoot: 0.5, // ...the footlights to half
+};
+
 export const FINALE = {
   center: { x: 0, y: 1.7, z: -8 }, // baseline centre of the ART OF PLAY line
   wordGap: 0.7, // space between words, card heights

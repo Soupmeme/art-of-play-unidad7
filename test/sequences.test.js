@@ -69,6 +69,7 @@ describe('each word can be completed deliberately', () => {
     for (let i = 1; i < xs.length; i++) expect(xs[i]).toBeGreaterThan(xs[i - 1]); // reads A R T O F P L A Y
     for (const l of g.letters) expect(g.bodies[l.id].translation().z).toBeCloseTo(FINALE.center.z);
     note(seq, 'finale: all nine on one line', g, ID.Y);
+    expect(g.decoys.length).toBe(0); // any decoys left on the stage melted when the finale began
   }, 60000);
 
   it('a word with no anchor never forms: O and F lying in order stay warm on the table', async () => {

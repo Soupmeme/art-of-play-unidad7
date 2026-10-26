@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import { createGlyphAtlas, createBannerMask } from './typeTextures.js';
 import { createAsciiMaterial } from './asciiMaterial.js';
-import { createDecoyMaterials, decoyBaseMaterials } from './decoyMaterial.js';
+import { createDecoyMaterials } from './decoyMaterial.js';
+import { createCardMaterials } from './cardMaterial.js';
 import { WALL, ROOM, ASCII, PALETTE, WORD_RULES } from '../config.js';
 
 const LOCK_GLOW = 0.28;
@@ -33,16 +34,26 @@ export function createCardMeshes(scene, game) {
   }
 
   for (const letter of game.letters) {
-    addMesh(letter, [
-      new THREE.MeshStandardMaterial({ color: PALETTE.ivory, roughness: 0.55, emissive: PALETTE.glow, emissiveIntensity: 0 }),
-      new THREE.MeshStandardMaterial({ color: PALETTE.oxblood, roughness: 0.7, emissive: PALETTE.glow, emissiveIntensity: 0 }),
-    ]);
+    const { face, edge } = createCardMaterials(letter.char);
+    addMesh(letter, [face, edge]);
+  }
+
+  function dropDecoyMesh(id) {
+    const entry = decoyMeshes.get(id);
+    scene.remove(entry.mesh);
+    entry.mesh.material.forEach((m) => m.dispose());
+    meshes.splice(meshes.indexOf(entry.mesh), 1);
+    decoyMeshes.delete(id);
   }
 
   function syncDecoys(seconds, dt) {
     for (const decoy of game.decoys) {
-      if (decoyMeshes.get(decoy.id)?.card === decoy) continue;
-      const { materials, uniforms } = createDecoyMaterials({ ...decoyBaseMaterials(PALETTE), seed: decoy.id * 17.0 + seconds });
+      const existing = decoyMeshes.get(decoy.id);
+      if (existing?.card === decoy) continue;
+      // Decoy ids are reused: a new decoy may take the id of one that just
+      // left, so drop the old mesh before making the new one.
+      if (existing) dropDecoyMesh(decoy.id);
+      const { materials, uniforms } = createDecoyMaterials({ ...createCardMaterials(decoy.char), seed: decoy.id * 17.0 + seconds });
       decoyMeshes.set(decoy.id, { mesh: addMesh(decoy, materials), uniforms, card: decoy });
     }
     for (const [id, entry] of decoyMeshes) {
@@ -53,10 +64,7 @@ export function createCardMeshes(scene, game) {
         u.uErosion.value = entry.card.erosion;
         continue;
       }
-      scene.remove(entry.mesh);
-      entry.mesh.material.forEach((m) => m.dispose());
-      meshes.splice(meshes.indexOf(entry.mesh), 1);
-      decoyMeshes.delete(id);
+      dropDecoyMesh(id);
     }
   }
 
@@ -104,6 +112,8 @@ export function createCardMeshes(scene, game) {
 export function createTypeSurfaces(scene, game) {
   const atlas = createGlyphAtlas();
   const banner = createBannerMask(ASCII.words);
+  // The answer, kept back until the finale (lighting.js reveals it).
+  const phraseBanner = createBannerMask(['ART', 'OF', 'PLAY'], { space: 0.9 });
   const animated = [];
 
   // Wall: one slab covering the brick grid. Only the front face is animated;
@@ -202,6 +212,12 @@ export function createTypeSurfaces(scene, game) {
   let nextPulse = 0;
 
   return {
+    // 'words': the stage's marquee words; 'phrase': ART OF PLAY (the finale).
+    setMarquee(mode) {
+      const mask = mode === 'phrase' ? phraseBanner : banner;
+      front.uniforms.uMask.value = mask.texture;
+      front.uniforms.uMaskAspect.value = mask.aspect;
+    },
     update(seconds) {
       for (const u of animated) u.uTime.value = seconds;
 

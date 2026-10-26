@@ -588,6 +588,9 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
 
   function startFinale() {
     if (held?.decoy) release({ kind: 'drop' });
+    // NON-PHYSICAL (4e): the lies dissolve when the answer appears; every
+    // decoy left on the stage melts away.
+    for (const decoy of decoys) decoy.meltAge ??= 0;
     const to = [];
     for (const { text } of WORDS) {
       resolution.words[text].members.forEach((id, i) => {

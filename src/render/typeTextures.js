@@ -44,13 +44,13 @@ export function createGlyphAtlas(cellPx = 128) {
   return texture;
 }
 
-// ART OF PLAY set with the font's advance widths and kerning, followed by a
-// gap, so the strip repeats seamlessly as it scrolls.
-export function createBannerMask(words, heightPx = 128) {
+// Words set with the font's advance widths and kerning, followed by a
+// marquee-wide gap, so the strip repeats seamlessly as it scrolls.
+export function createBannerMask(words, { heightPx = 128, space = 2.2 } = {}) {
   const text = words.join(' ');
   const cap = heightPx * 0.78;
-  const space = 2.2; // a marquee-wide gap between words
-  const trailing = space;
+  // space: the gap between words, in cap heights (marquee-wide by default)
+  const trailing = Math.max(space, 2.2);
   const pieces = [];
   let units = 0;
   for (let i = 0; i < text.length; i++) {

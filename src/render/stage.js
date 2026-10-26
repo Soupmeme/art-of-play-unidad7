@@ -94,12 +94,13 @@ export function createStage(scene) {
 
   let lastStep = -1;
   return {
-    // Marquee chase: every third bulb dims, and the pattern steps around the frame.
-    update(seconds) {
-      const step = Math.floor(seconds * 5);
+    // Marquee chase: every third bulb dims, and the pattern steps around the
+    // frame. With allLit (the finale) every bulb burns.
+    update(seconds, { allLit = false } = {}) {
+      const step = allLit ? -2 : Math.floor(seconds * 5);
       if (step === lastStep) return;
       lastStep = step;
-      for (let i = 0; i < positions.length; i++) bulbs.setColorAt(i, (i + step) % 3 === 0 ? dim : lit);
+      for (let i = 0; i < positions.length; i++) bulbs.setColorAt(i, !allLit && (i + step) % 3 === 0 ? dim : lit);
       bulbs.instanceColor.needsUpdate = true;
     },
   };

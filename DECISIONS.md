@@ -354,3 +354,24 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 - **Observation (Kiwi):** with 10 or 11 cards the fan was too tightly packed.
 - **Decision:** a hand of 8 or more cards is dealt in two rows, one above the other: the back row (the first half of the hand order) 0.62 higher and 0.3 further away, shifted 0.42 left; the front row below and in front, shifted 0.42 right, so back-row letters show between front-row ones. Within a row the cards overlap less (0.86 of their mean advance, was 0.64). The deal fills the back row left to right, then the front row.
 - **Trade-off:** the back row's tops reach about 58% down the screen (the single row reached 72%), so the hand now covers a little more of the middle of the stage; the stage near the backdrop stays clear.
+
+## 2026-10-25, M5 (typographic resolution, lighting, reading moments)
+
+### Card faces and backs (`src/render/cardTextures.js`, `src/render/cardMaterial.js`)
+- **Face:** ivory stock; a faint micro-type ground (rows of tiny letters of the phrase, a few percent darker than the stock, like security printing); and a border of tiny copies of the card's own letter (0.045 card heights) set 0.05 inside every contour, outer edge and counters alike, each turned to follow the cut, in oxblood. Every mark is a letter of the phrase (rule 1).
+- **Back:** oxblood, with an ivory lattice of the phrase's letters on the diagonal (alternate letters turned over, like a classic card back) and the same border in ivory. The back is drawn mirrored and read mirrored, so a card seen from behind shows its back pattern the right way round.
+- **How:** one standard material draws both caps; the shader picks the face or back texture by the cap's normal in the card's own frame. Card UVs are a square of side 1.08 x the letter's larger dimension, centred on the letter (`uvSpan` in `glyphs.js`). Textures are 1024 px, made once per letter and shared; the edge stays oxblood.
+- **Decoys** wear the same faces and backs as real letters (they must pass at a glance); their tell is chained after the card patch.
+
+### Lighting cues (`src/render/lighting.js`)
+- **Follow spot:** a narrow spot from the booth behind the audience finds the held card (intensity 1.8, half-angle 0.13 rad) and lets it go on release. Every level eases at 3 per second, so cues fade instead of snapping.
+- **Finale (the reading moment):** the house dims to 30%, the key to 35%, the backdrop washes to 30%, the footlights to half; the follow spot opens (0.3 rad, 3.2) onto the line; every marquee bulb burns; and the backdrop's marquee switches from the stage words to ART OF PLAY, the one time the backdrop spells the answer. Any decoys left on the stage melt away as the finale begins (4e), so only the nine letters remain.
+- **Checked in the browser:** at rest (two rows of ornamented cards, marquee words), mid-pull (OF locked and glowing, R drawn in beside the stuck A) and the finale (dimmed house, lit line) all play as designed. A mid-flight frame was seen during the run but not kept.
+
+### Robustness found while checking
+- **Decoy meshes:** decoy ids are reused; when a new decoy took the id of one that had just left, the old mesh was orphaned, and once that id emptied again the frame loop crashed on a missing body. The old mesh is now dropped before the new one is made.
+- **Frame loop:** the next frame is scheduled before anything else runs, and errors are caught and logged, so one bad frame can no longer freeze the piece. Important for a homepage hero.
+
+### Dev
+- "save screenshot (PNG)" in the dev panel renders a frame and downloads it, for the logbook's screenshots at rest, mid-flight, mid-pull and at the finale.
+- The finale sequence test now also checks that no decoys are left on the stage.

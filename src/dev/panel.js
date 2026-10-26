@@ -5,7 +5,7 @@ import GUI from 'three/addons/libs/lil-gui.module.min.js';
 import { THROW, HOLD, AIR, CARD, EFFECTS, WORD_RULES, DECOYS, DECAY, RESET } from '../config.js';
 import { FAMILY } from '../letters/families.js';
 
-export function createDevPanel({ game, colliderDebug }) {
+export function createDevPanel({ game, colliderDebug, view }) {
   const gui = new GUI({ title: 'dev' });
 
   const t = gui.addFolder('Throw mapping');
@@ -108,6 +108,17 @@ export function createDevPanel({ game, colliderDebug }) {
     'show colliders': false,
   };
   gui.add(actions, 'new round (shuffle and deal)');
+  // For the logbook: renders a frame and saves it as a PNG download.
+  const shots = {
+    'save screenshot (PNG)': () => {
+      view.render();
+      const link = document.createElement('a');
+      link.download = `art-of-play-${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+      link.href = view.renderer.domElement.toDataURL('image/png');
+      link.click();
+    },
+  };
+  gui.add(shots, 'save screenshot (PNG)');
   gui.add(actions, 'show colliders').onChange((v) => {
     colliderDebug.lines.visible = v;
   });
