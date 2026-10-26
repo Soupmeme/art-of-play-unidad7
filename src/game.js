@@ -12,10 +12,11 @@ import { resolveWords, letterSnapshot, impostorWarmth } from './words/resolve.js
 import { finaleLayout, finalePose } from './staging/finale.js';
 import { shuffleHand, openingTracks, trackPose, openingCurtain } from './staging/opening.js';
 import { layoutWall, createBrickBodies } from './wall/wall.js';
+import { createDecayScheduler } from './wall/decay.js';
 import { createRoom } from './physics/room.js';
 import { applyAirDrag, steerArrive, steerUpright } from './physics/forces.js';
 import { createRng, deriveSeed } from './core/rng.js';
-import { CARD, AIR, ROOM, WALL, FAN, HOLD, EFFECTS, WORD_RULES, DECOYS, OPENING, FINALE, STATUS_RULES, WORLD } from './config.js';
+import { CARD, AIR, ROOM, WALL, FAN, HOLD, EFFECTS, WORD_RULES, DECOYS, OPENING, DECAY, RESET, FINALE, STATUS_RULES, WORLD } from './config.js';
 
 // Collision groups, Rapier's packed form: (membership << 16) | filter.
 // NON-PHYSICAL (4d): letters resting in the fan only touch the room, so a
@@ -135,7 +136,13 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
   let holdTarget = null;
   let lastPlan = null;
   let lastContact = null;
-  const brickStress = new Float32Array(bricks.length); // read by the decay scheduler (M4)
+  const brickStress = new Float32Array(bricks.length); // Ripple stress, read by the decay scheduler
+  const standing = bricks.map(() => true); // false once a brick has been released
+  const shudderStart = bricks.map(() => null); // time a chosen brick began its telegraph
+  let fallen = 0;
+  let decay = createDecayScheduler(deriveSeed(seed, 'decay'), DECAY, bricks);
+  let lastInput = 0; // time of the last hold or throw
+  let resetting = null; // { start, reason } while fading out before a new round
   const impacts = []; // recent wall impacts, for the renderer: { kind, x, y, time, seq }
   let roundIndex = 0;
   let roundSeed = seed;
@@ -163,7 +170,7 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
   }
 
   function hold(card) {
-    if (!HOLDABLE.has(card.status) || held || opening) return false;
+    if (!HOLDABLE.has(card.status) || held || opening || resetting) return false;
     const body = bodies[card.id];
     body.setBodyType(rapier.RigidBodyType.Dynamic, true);
     body.setGravityScale(0, true); // the hand carries the weight while held
@@ -172,6 +179,7 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
     held = card;
     holdTarget = body.translation();
     playStart ??= time;
+    lastInput = time;
     return true;
   }
 
@@ -202,6 +210,7 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
     held.airborne = true;
     lastPlan = { ...plan, letter: held.char, decoy: !!held.decoy, from: body.translation() };
     held = null;
+    lastInput = time;
   }
 
   function unstick(card) {
@@ -243,13 +252,83 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
   // play clock stopped; then a fresh hand is shuffled (with one or two decoys)
   // and, with the opening on, the dealer's shuffle plays it in. Used at the
   // start, by the dev panel, and by M4's resets.
+  // NON-PHYSICAL (4c): a chosen brick lets go after its telegraph. From here
+  // it is an ordinary dynamic body: it tips off the wall and falls. Cards
+  // stuck to it come away with it.
+  function releaseBrick(i) {
+    const body = brickBodies[i];
+    body.setBodyType(rapier.RigidBodyType.Dynamic, true);
+    // Slick on release (the lower friction of the pair wins), so it slides off
+    // the brick below instead of resting on its ledge.
+    body.collider(0).setFriction(DECAY.releaseFriction);
+    body.collider(0).setFrictionCombineRule(rapier.CoefficientCombineRule.Min);
+    body.setLinvel({ x: 0, y: 0, z: DECAY.releasePush }, true);
+    standing[i] = false;
+    shudderStart[i] = null;
+    brickStress[i] = 0;
+    fallen++;
+    for (const card of cards()) {
+      if (card.status !== STATUS.stuck || card.stuckTo !== i) continue;
+      const cb = bodies[card.id];
+      cb.setBodyType(rapier.RigidBodyType.Dynamic, true);
+      cb.setGravityScale(1, true);
+      cb.setLinvel({ x: 0, y: 0, z: DECAY.releasePush }, true);
+      unstick(card);
+      card.status = STATUS.flying;
+      card.restTime = 0;
+    }
+    recordImpact('release', bricks[i]);
+  }
+
+  // Every brick back in its place, fixed; no stress, D back to 0, new seed.
+  function rebuildWall() {
+    bricks.forEach((b, i) => {
+      const body = brickBodies[i];
+      body.setBodyType(rapier.RigidBodyType.Fixed, true);
+      body.collider(0).setFriction(WALL.friction);
+      body.collider(0).setFrictionCombineRule(rapier.CoefficientCombineRule.Average);
+      body.setTranslation({ x: b.x, y: b.y, z: b.z }, true);
+      body.setRotation(IDENTITY, true);
+      body.setLinvel(ZERO, true);
+      body.setAngvel(ZERO, true);
+      standing[i] = true;
+      shudderStart[i] = null;
+      brickStress[i] = 0;
+    });
+    fallen = 0;
+  }
+
+  // Bricks behind a locked word never fall (a locked word is safe).
+  function immuneBricks() {
+    const immune = new Set();
+    for (const letter of letters) {
+      if (letter.status !== STATUS.locked) continue;
+      const p = bodies[letter.id].translation();
+      if (p.z < WALL.z - 0.2 || p.z > WALL.z + 1) continue;
+      bricks.forEach((b, i) => {
+        if (Math.abs(b.x - p.x) < b.w / 2 + 0.6 && Math.abs(b.y - p.y) < b.h / 2 + 0.55) immune.add(i);
+      });
+    }
+    return immune;
+  }
+
+  // NON-PHYSICAL (4d): the reset. Fade to black, rebuild the wall, then a new
+  // round (whose opening fades back in). Never starts while a card is held,
+  // during an opening, or while already resetting.
+  function beginReset(reason) {
+    if (resetting || opening || held) return;
+    resetting = { start: time, reason };
+  }
+
   function startRound() {
     if (held) release({ kind: 'drop' });
     [...decoys].forEach(removeDecoy);
     lockedWords.length = 0;
     finale = null;
     playStart = null;
+    resetting = null;
     roundSeed = deriveSeed(seed, `round ${roundIndex++}`);
+    decay = createDecayScheduler(deriveSeed(roundSeed, 'decay'), DECAY, bricks);
     shedder = createShedder(roundSeed, DECOYS, wall);
     const rng = createRng(deriveSeed(roundSeed, 'hand'));
 
@@ -392,7 +471,7 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
     if (card.family === FAMILY.stick && target?.status === STATUS.stuck && speed >= EFFECTS.stick.knockSpeed) {
       knockOut(target, v);
       lastContact = { letter: card.char, decoy: !!card.decoy, speed, knocked: target.char };
-    } else if (card.family === FAMILY.stick && other.type === 'brick') {
+    } else if (card.family === FAMILY.stick && other.type === 'brick' && standing[other.index]) {
       const check = stickCheck(v, body.rotation(), EFFECTS.stick);
       // Lockout mitigation (a): a letter being pulled by a correct neighbour
       // does not embed; the pull wins.
@@ -481,6 +560,7 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
       letter.airborne = false;
     });
     lockedWords.push({ word: text, time });
+    decay.onLock(time - playStart);
     if (lockedWords.length === WORDS.length) startFinale();
   }
 
@@ -501,7 +581,7 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
 
   // Decoys: shed when due, then their tell, ageing, melting and removal.
   function updateDecoys(dt) {
-    if (playStart !== null && !finale) {
+    if (playStart !== null && !finale && !resetting) {
       const spec = shedder.due(time - playStart, decoys.length < Math.min(DECOYS.count, MAX_DECOYS));
       if (spec) shedDecoy(spec);
     }
@@ -629,6 +709,33 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
       }
     }
 
+    // The wall: telegraphs that have run their course release their brick;
+    // the scheduler picks new ones. Paused before play, in the opening, in
+    // the finale and while resetting.
+    if (playStart !== null && !finale && !opening && !resetting) {
+      for (let i = 0; i < bricks.length; i++) {
+        if (shudderStart[i] !== null && time - shudderStart[i] >= DECAY.telegraph) releaseBrick(i);
+      }
+      const immune = immuneBricks();
+      const chosen = decay.update({
+        playTime: time - playStart,
+        dt,
+        eligible: (i) => standing[i] && shudderStart[i] === null && !immune.has(i),
+        stress: brickStress,
+      });
+      for (const i of chosen) shudderStart[i] = time;
+      if (fallen / bricks.length >= DECAY.collapseFraction) beginReset('collapse');
+    }
+
+    // Quiet reset: once play has started, a long spell with no hold or throw
+    // ends the round (also after the finale).
+    if (playStart !== null && !held && time - lastInput >= RESET.quietSeconds) beginReset('quiet');
+
+    if (resetting && time - resetting.start >= RESET.fadeOut) {
+      rebuildWall();
+      startRound();
+    }
+
     if (finale) return;
     for (const [text, word] of Object.entries(resolution.words)) {
       if (word.state === 'ready' && word.members.every((id) => letters[id].status !== STATUS.held)) lockWord(text, word);
@@ -653,6 +760,22 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
     bricks,
     brickBodies,
     brickStress,
+    standing,
+    shudderStart,
+    get fallen() {
+      return fallen;
+    },
+    get decay() {
+      return decay.state;
+    },
+    get resetting() {
+      return resetting;
+    },
+    get quietFor() {
+      return playStart === null ? 0 : time - lastInput;
+    },
+    releaseBrick,
+    beginReset,
     impacts,
     wall,
     room,
@@ -689,6 +812,7 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
     // While a round opens: { black, push } from 1 down to 0 (fade from black,
     // camera push-in); both 0 once settled.
     get curtain() {
+      if (resetting) return { black: Math.min(1, (time - resetting.start) / RESET.fadeOut), push: 0 };
       return opening ? openingCurtain(time - opening.start, OPENING) : { black: 0, push: 0 };
     },
     get opening() {

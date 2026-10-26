@@ -37,7 +37,7 @@ export const AIR = { coefficient: 0.015 };
 
 export const ROOM = {
   frontZ: -4.3, // invisible glass between the camera and the play area
-  backZ: -12.35, // just behind the wall's back face: nothing can get behind the wall
+  backZ: -12.42, // just behind the wall's back face (glass 0.1 thick, clear of the wall): nothing can get behind it
   height: 8,
   // Side boundary: from (±nearX, frontZ) to (±farX, wall.z), then straight back.
   nearX: 4.3, // a little past the screen edge at the front, so the hand can reach the sides
@@ -235,6 +235,29 @@ export const OPENING = {
   dealStep: 0.1, // seconds between cards dealt into the hand
   flight: 0.32, // seconds each card takes for a hop
   lift: 0.45, // how high a hop arcs
+};
+
+// Soft pressure (brief 5.6): the wall decays. NON-PHYSICAL (4c): the scheduler
+// decides which bricks go and when; once released they fall under physics.
+export const DECAY = {
+  grace: 40, // seconds of play before scheduled decay starts
+  rise: 1 / 150, // D gained per second after the grace period (0 to 1 in 150 s)
+  lockDrop: 0.25, // a locked word lowers D by this...
+  respite: 20, // ...and stops scheduled events for this many seconds
+  intervalMax: 9, // seconds between events at D = 0
+  intervalMin: 2.5, // ... and at D = 1
+  clusterMax: 4, // bricks per event at D = 1 (1 at D = 0)
+  telegraph: 0.6, // seconds a chosen brick shudders before it falls
+  stressWeight: 3, // how much Ripple stress raises a brick's chance to be picked
+  stressRelease: 1, // a brick stressed this much goes on its own, grace or not (about 3 Ripple hits)
+  releasePush: 1.0, // units/s outward as a brick lets go, so it tips off the wall
+  releaseFriction: 0.1, // a released brick is slick, so it slides off the brick below instead of resting on it
+  collapseFraction: 0.6, // when this share of bricks has fallen, the round resets
+};
+
+export const RESET = {
+  quietSeconds: 25, // no hold or throw for this long, once play has started: reset
+  fadeOut: 0.9, // seconds to fade to black before the new round's opening
 };
 
 export const FINALE = {

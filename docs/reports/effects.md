@@ -7,18 +7,18 @@ Whether a person who does not know the rules can tell the effects apart is for K
 
 | letter id | letter | family | expected by the rule | wall hit (x, y) | status after 3 s | rest (x, y, z) |
 |---|---|---|---|---|---|---|
-| 0 | A | stick | full power: embeds at the aim point and stays | -0.03, 2.50 | stuck | 0.02, 2.49, -12.00 |
-| 1 | R | curve | straight flick: hooks right of the aim, then falls | 1.27, 2.40 | flying | 2.40, 0.01, -8.95 |
-| 2 | T | stick | full power: embeds at the aim point and stays | -0.01, 2.51 | stuck | 0.05, 2.49, -12.00 |
-| 3 | O | ripple | bounces back far from the wall | -0.00, 2.51 | onTable | -0.30, 0.01, -5.42 |
+| 0 | A | stick | full power: embeds at the aim point and stays | -0.03, 2.50 | stuck | -0.00, 2.50, -12.00 |
+| 1 | R | curve | straight flick: hooks right of the aim, then falls | 1.27, 2.40 | onTable | 2.97, 0.49, -9.24 |
+| 2 | T | stick | full power: embeds at the aim point and stays | -0.01, 2.51 | stuck | 0.07, 2.48, -12.00 |
+| 3 | O | ripple | bounces back far from the wall | -0.00, 2.51 | flying | -0.07, 0.16, -5.30 |
 | 4 | F | stick | full power: embeds at the aim point and stays | 0.00, 2.51 | stuck | 0.00, 2.51, -12.00 |
 | 5 | P | curve | straight flick: hooks right of the aim, then falls | 1.16, 2.58 | onTable | 1.38, 0.01, -9.15 |
 | 6 | L | stick | full power: embeds at the aim point and stays | 0.01, 2.51 | stuck | 0.00, 2.50, -12.00 |
 | 7 | A | stick | full power: embeds at the aim point and stays | 0.01, 2.50 | stuck | 0.00, 2.50, -12.00 |
-| 8 | Y | ripple | bounces back far from the wall | 0.03, 2.50 | flying | -0.23, 0.01, -6.00 |
-| 2 | T | stick | medium flick: bounces off, does not embed | -0.01, 1.33 | onTable | -0.21, 0.01, -10.61 |
+| 8 | Y | ripple | bounces back far from the wall | 0.03, 2.50 | flying | 0.93, 0.06, -4.99 |
+| 2 | T | stick | medium flick: bounces off, does not embed | -0.01, 1.33 | onTable | -0.06, 0.01, -10.56 |
 | 1 | R | curve | left flick: hook grows from left to right | -0.01, 2.50 | onTable | -0.65, 0.01, -9.39 |
-| 1 | R | curve | straight flick: hook grows from left to right | 1.27, 2.40 | flying | 2.40, 0.01, -8.95 |
-| 1 | R | curve | right flick: hook grows from left to right | 2.90, 2.54 | onTable | 2.30, 0.01, -9.22 |
-| 3 | O | ripple | low throw beside a lying T: the T is shoved (1.00 units) | -0.00, 0.53 | flying | -0.16, 0.01, -7.30 |
+| 1 | R | curve | straight flick: hook grows from left to right | 1.27, 2.40 | onTable | 2.97, 0.49, -9.24 |
+| 1 | R | curve | right flick: hook grows from left to right | 2.90, 2.54 | onTable | 2.24, 0.01, -9.82 |
+| 3 | O | ripple | low throw beside a lying T: the T is shoved (0.53 units) | -0.00, 0.53 | flying | 0.04, 0.05, -6.31 |
 | 4 | F | stick | same throw for comparison: the T moves 0.00 units | 0.00, 0.52 | stuck | 0.00, 0.51, -12.00 |

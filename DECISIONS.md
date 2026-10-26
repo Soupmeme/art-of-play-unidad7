@@ -307,3 +307,31 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 - `startRound()` builds a round: it clears decoys, locks and the finale, reshuffles from a new round seed, and plays the opening. The dev panel's button now reads "new round (shuffle and deal)"; M4's quiet and collapse resets will call it.
 - **Tests:** shuffled hands are permutations, seeded, free of hint pairs; tracks start every card on the deck, split it in two, deal left to right and end each card in its slot; the fade and push run 1 to 0; a real round deals 9 plus 1 or 2 decoys, blocks holding until the deal ends, and settles every card in its slot; hand decoys do not age; a new round deals a different shuffle.
 - **Test sessions** start from a known hand (reading order, no hand decoys, no opening) unless they ask for the real round, so the throw, effect and sequence measurements stay comparable.
+
+## 2026-10-25, M4 (wall decay and resets)
+
+### The decay scheduler (4c)
+- **Decision:** `src/wall/decay.js`, seeded per round. D starts at 0, rises 1/150 per second once a 40 s grace period of play has passed (play starts at the first hold), and drops by 0.25 when a word locks. Scheduled events come every lerp(9, 2.5, D) seconds (+/- 20%), each a cluster of 1 to 4 neighbouring bricks (1 + round(3D)). The first brick of a cluster is drawn at random, weighted by 1 + 3 x its Ripple stress.
+- **Respite:** a lock stops scheduled events for 20 s.
+- **Stress releases (lockout mitigation b):** a brick whose Ripple stress reaches 1 (about three Ripple hits on it) goes on its own, grace period and respite notwithstanding.
+- **Immunity:** bricks behind a locked word's letters (within 0.6 x and 0.55 y of a locked letter near the wall) are never chosen.
+- **Paused:** before play, during the opening, in the finale and while resetting.
+- Brick count stays 180 (20 x 9). Expected pace from the parameters (not playtested): the first scheduled bricks fall at 40 s of play; a round left to decay collapses after a few minutes.
+
+### Telegraph and release
+- **Telegraph:** a chosen brick shudders for 0.6 s: in the backdrop's type, its 5 x 4 block of cells jitters sideways and flickers (render only; the brick is still fixed).
+- **Release:** the brick becomes an ordinary dynamic body with 1 unit/s outward. Found while testing: with ordinary friction it slid 0.12 and rested on the brick below (Rapier averages the two frictions), and its tipping spin jammed it against the back boundary, which also overlapped the wall's back face by 0.05. A released brick is now slick (friction 0.1, combined by the minimum), gets no spin, and the back boundary moved to z = -12.42, clear of the wall. It now slides out and falls. Cards stuck to it come away with it (tested).
+- **Visuals:** the brick's cells vanish from the backdrop, leaving a dark hole to the house behind, and the brick falls as its own block carrying the moving type. A rebuild removes the loose blocks.
+- **Contacts:** a Stick letter can only bite a standing brick; a falling or fallen brick is something to bounce off.
+
+### Resets (4d)
+- **Quiet reset:** once play has started, 25 s with no hold or throw starts a reset (also after the finale). It never starts while a card is held, and never before play has started, so a page left open does not keep re-dealing.
+- **Collapse reset:** when 60% of the bricks have fallen.
+- **Sequence:** fade to black over 0.9 s (nothing can be held), then the wall is rebuilt (every brick fixed in place, stress cleared, D back to 0, a new decay seed) and `startRound()` deals a new round, whose opening fades back in with the camera push and the dealer's shuffle.
+- **Checked in the browser:** a dev reset faded out over 0.9 s, rebuilt the wall (10 fallen bricks back to 0) and played the opening; no console errors.
+
+### Tests
+- `test/decay.test.js`: the scheduler alone (silent during grace; reproducible by seed; D, cluster size and rate grow; clusters are neighbours; a lock lowers D and silences events for the respite; ineligible bricks are never picked; Ripple stress releases a brick even during grace); and in the game with real Rapier (bricks shudder then fall after grace; a stuck letter falls with its brick; bricks behind a locked word stay standing through 160 s of decay while more than 10 others fall; a lock grants the respite; quiet reset rebuilds the wall and restarts the round; no quiet reset before play; never while holding; collapse reset at 60%).
+
+### Dev tools
+- "Decay and reset" folder in the dev panel (grace, rise, intervals, cluster size, telegraph, respite, collapse fraction, quiet seconds; "drop a brick now", "reset now"); the readout shows D, the next event, fallen bricks, the quiet timer and any reset in progress.

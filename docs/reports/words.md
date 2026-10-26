@@ -16,7 +16,7 @@ These are measurements of the code, not playtest results.
 | full phrase | second A at its slot right of L: pulled | onTable | 3.24, 1.24, -11.98 | ART locked, OF locked, PLAY pulling |
 | full phrase | Y at its slot: PLAY locks, finale begins | locked | 4.90, 2.20, -8.00 | ART locked, OF locked, PLAY ready |
 | full phrase | finale: all nine on one line | locked | 4.90, 2.20, -8.00 | ART locked, OF locked, PLAY ready |
-| no anchor | O and F lying flat in order, 1.1 apart: warm, but no pull and no lock (words need a stuck anchor) | flying | 0.53, 0.12, -10.12 | ART cold, OF warm, PLAY cold |
-| wrong order | O thrown at the mirror slot, right of F: nothing | flying | 0.47, 0.06, -4.95 | ART cold, OF cold, PLAY cold |
+| no anchor | O and F lying flat in order, 1.1 apart: warm, but no pull and no lock (words need a stuck anchor) | flying | 0.59, 0.20, -10.08 | ART cold, OF warm, PLAY cold |
+| wrong order | O thrown at the mirror slot, right of F: nothing | flying | 0.68, 0.03, -5.19 | ART cold, OF cold, PLAY cold |
 | mis-anchored | A and T stuck 1.2 apart | stuck | 0.19, 2.50, -12.00 | ART unresolvable, OF cold, PLAY cold |
-| mis-anchored | R thrown between them: not pulled, ART stays unresolvable | onTable | -0.14, 0.01, -10.76 | ART unresolvable, OF cold, PLAY cold |
+| mis-anchored | R thrown between them: not pulled, ART stays unresolvable | onTable | -0.17, 0.01, -10.73 | ART unresolvable, OF cold, PLAY cold |

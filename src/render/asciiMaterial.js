@@ -32,6 +32,10 @@ uniform float uGlow;
 uniform vec3 uBase;
 uniform vec3 uInk;
 uniform vec2 uSize; // surface size in world units
+uniform sampler2D uBricks; // per brick: r = gone, g = shuddering (the decay telegraph)
+uniform float uUseBricks;
+uniform vec2 uBrickGrid;
+uniform vec2 uCellsPerBrick;
 uniform vec4 uPulse[4]; // impacts: x, y (from the bottom-left corner), start time, kind (0 none, 1 stick, 2 ripple, 3 bounce)
 varying vec2 vAsciiUv;
 
@@ -43,6 +47,15 @@ float asciiInk(vec2 uv) {
   vec2 cell = uv * uGrid;
   vec2 id = floor(cell);
   vec2 f = fract(cell);
+
+  // Bricks: a released brick leaves a hole in the type; a brick about to go
+  // shudders, its cells jittering and flickering for the telegraph.
+  float shudder = 0.0;
+  if (uUseBricks > 0.5) {
+    vec4 st = texture(uBricks, (floor(id / uCellsPerBrick) + 0.5) / uBrickGrid);
+    if (st.r > 0.5) discard;
+    shudder = st.g;
+  }
 
   // Impacts answer in the type itself: a Stick hit lights the cells it bit
   // into, a Ripple sends a ring outward that knocks cells out of line, a plain
@@ -71,6 +84,9 @@ float asciiInk(vec2 uv) {
   float glitched = step(1.0 - uJagShare, asciiHash(vec2(id.y, tick + 17.0)));
   float jag = glitched * floor((asciiHash(vec2(id.y, tick)) - 0.5) * 2.0 * uJag + 0.5);
   jag += floor(shove + 0.5) * (mod(id.y, 2.0) * 2.0 - 1.0); // alternate rows shove opposite ways
+  float twitch = floor(uTime * 24.0);
+  jag += shudder * floor((asciiHash(vec2(id.y, twitch)) - 0.5) * 3.0 + 0.5);
+  flash = max(flash, shudder * step(0.45, asciiHash(vec2(id.x + id.y * 7.0, twitch))));
   float src = id.x + floor(uTime * uScroll) + jag; // content column shown in this cell
 
   float level = uFlat;
@@ -105,6 +121,7 @@ export function createAsciiMaterial({
   flat = 1,
   scroll = params.scroll,
   size = { x: 1, y: 1 },
+  bricks = null, // { texture, grid: { x, y }, cellsPerBrick: { x, y } } for the wall
   roughness = 0.8,
 }) {
   const uniforms = {
@@ -129,6 +146,10 @@ export function createAsciiMaterial({
     uInk: { value: new THREE.Color(ink) },
     uSize: { value: new THREE.Vector2(size.x, size.y) },
     uPulse: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 0, 0)) },
+    uBricks: { value: bricks?.texture ?? null },
+    uUseBricks: { value: bricks ? 1 : 0 },
+    uBrickGrid: { value: new THREE.Vector2(bricks?.grid.x ?? 1, bricks?.grid.y ?? 1) },
+    uCellsPerBrick: { value: new THREE.Vector2(bricks?.cellsPerBrick.x ?? 1, bricks?.cellsPerBrick.y ?? 1) },
   };
 
   const material = new THREE.MeshStandardMaterial({ color: base, roughness });

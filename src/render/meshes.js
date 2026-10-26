@@ -101,6 +101,12 @@ export function createTypeSurfaces(scene, game) {
   // sides, top and back are the plain wall colour.
   const width = WALL.cols * WALL.brickWidth;
   const height = WALL.rows * WALL.brickHeight;
+  // Brick state for the shader, one texel per brick: r = gone, g = shuddering.
+  const brickData = new Uint8Array(WALL.cols * WALL.rows * 4);
+  const brickTexture = new THREE.DataTexture(brickData, WALL.cols, WALL.rows, THREE.RGBAFormat);
+  brickTexture.magFilter = THREE.NearestFilter;
+  brickTexture.minFilter = THREE.NearestFilter;
+  brickTexture.needsUpdate = true;
   const front = createAsciiMaterial({
     atlas,
     grid: { x: WALL.cols * ASCII.cellsPerBrick.x, y: WALL.rows * ASCII.cellsPerBrick.y },
@@ -111,8 +117,22 @@ export function createTypeSurfaces(scene, game) {
     ink: PALETTE.wallInk,
     params: ASCII,
     size: { x: width, y: height },
+    bricks: { texture: brickTexture, grid: { x: WALL.cols, y: WALL.rows }, cellsPerBrick: ASCII.cellsPerBrick },
   });
   animated.push(front.uniforms);
+
+  // Released bricks: each falls as its own block, carrying the same moving type.
+  const brickGeometry = new THREE.BoxGeometry(WALL.brickWidth - 0.004, WALL.brickHeight - 0.004, WALL.depth);
+  const looseType = createAsciiMaterial({
+    atlas,
+    grid: ASCII.cellsPerBrick,
+    base: PALETTE.wall,
+    ink: PALETTE.wallInk,
+    params: ASCII,
+    flat: 0.5,
+  });
+  animated.push(looseType.uniforms);
+  const looseBricks = new Map(); // brick index -> mesh
   const plain = new THREE.MeshStandardMaterial({ color: PALETTE.wall, roughness: 0.85 });
   // BoxGeometry face order: +x, -x, +y, -y, +z (front, toward the camera), -z.
   const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, WALL.depth), [
@@ -168,13 +188,38 @@ export function createTypeSurfaces(scene, game) {
   // with the render clock. The four most recent are kept.
   // A decoy shed from the wall, or melting back into it, flashes like a bite.
   // A knocked-out letter sends a small ring, like a ripple.
-  const PULSE_KIND = { stick: 1, ripple: 2, bounce: 3, shed: 1, melt: 1, knock: 2 };
+  const PULSE_KIND = { stick: 1, ripple: 2, bounce: 3, shed: 1, melt: 1, knock: 2, release: 3 };
   let seen = 0;
   let nextPulse = 0;
 
   return {
     update(seconds) {
       for (const u of animated) u.uTime.value = seconds;
+
+      // Brick state into the wall's texture; loose bricks follow their bodies.
+      for (let i = 0; i < game.bricks.length; i++) {
+        const b = game.bricks[i];
+        const k = (b.row * WALL.cols + b.col) * 4;
+        brickData[k] = game.standing[i] ? 0 : 255;
+        brickData[k + 1] = game.shudderStart[i] !== null ? 255 : 0;
+        let mesh = looseBricks.get(i);
+        if (!game.standing[i]) {
+          if (!mesh) {
+            mesh = new THREE.Mesh(brickGeometry, looseType.material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            looseBricks.set(i, mesh);
+          }
+          const body = game.brickBodies[i];
+          mesh.position.copy(body.translation());
+          mesh.quaternion.copy(body.rotation());
+        } else if (mesh) {
+          scene.remove(mesh);
+          looseBricks.delete(i);
+        }
+      }
+      brickTexture.needsUpdate = true;
       for (const impact of game.impacts) {
         if (impact.seq <= seen) continue;
         seen = impact.seq;
