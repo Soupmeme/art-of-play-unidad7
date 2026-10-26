@@ -111,7 +111,8 @@ export const FAN = {
   radius: 10, // arc radius of the hand; larger is flatter
   sag: 0.35, // how much the outer cards drop along the arc (1 = a true circle)
   overlap: 0.64, // fraction of the mean advance between neighbours
-  wordGap: 0.45,
+  wordGap: 0.45, // only used when the hand is in reading order (shuffle off)
+  maxSpan: 6.8, // the hand never gets wider than this along its arc; more cards overlap more
   layerStep: 0.04, // later cards sit slightly in front, like a held hand
   breatheAmplitude: 0.012, // idle breathing, units
   breatheRotation: 0.006, // radians
@@ -174,6 +175,7 @@ export const EFFECTS = {
 // Word resolution (brief 5.5). The word function is pure (src/words/resolve.js);
 // the pull is NON-PHYSICAL (4b). Distances in card heights.
 export const WORD_RULES = {
+  requireAnchor: true, // words only form from a letter stuck in the backdrop (Kiwi, E8)
   hintRadius: 2.5, // correct neighbours closer than this tremble (warm)
   pullRadius: 1.5, // ... closer than this are drawn into their slots
   depthTolerance: 1.0, // pull only when the pair is roughly at the same depth
@@ -200,11 +202,13 @@ export const WORD_RULES = {
 // stay: a stuck decoy melts back into the wall, a loose one erodes away.
 // NON-PHYSICAL (4e): shedding, melting and eroding.
 export const DECOYS = {
-  count: 3, // most decoys at once; 0 turns the mechanic off (for playtest comparison)
+  count: 4, // most decoys at once, in the hand and shed; 0 turns the mechanic off (for playtest comparison)
+  inHandMin: 1, // decoys shuffled into the hand at the start of a round
+  inHandMax: 2,
   chars: 'ARTOFPLY',
-  firstAfter: 8, // seconds of play (from the first hold) before the first shed
-  intervalMin: 6, // seconds between sheds
-  intervalMax: 12,
+  firstAfter: 5, // seconds of play (from the first hold) before the first shed
+  intervalMin: 4, // seconds between sheds
+  intervalMax: 8,
   lifetime: 35, // seconds a loose decoy lasts
   erodeTime: 6, // the last seconds of its life, eroding visibly
   meltTime: 1.2, // seconds for a stuck decoy to melt into the wall
@@ -214,6 +218,23 @@ export const DECOYS = {
   tellBase: 0.15, // at rest: faint glitch lines
   tellHeld: 0.55, // while held
   // ... rising to 1 as it nears the slot it pretends to fill (impostor warmth).
+};
+
+// The opening of a round (Kiwi, 2026-10-25). NON-PHYSICAL (4d): staging.
+// The picture fades in from black while the camera eases forward, and the
+// dealer shuffles: the deck splits in two, riffles back together, and the
+// cards are dealt into the hand in a random order, with one or two decoys.
+export const OPENING = {
+  fade: 1.2, // seconds from black
+  dollyFrom: 1.6, // camera starts this far back, units
+  dolly: 2.8, // seconds to ease into place
+  deck: { x: 0, y: 1.0, z: -4.8 }, // where the deck sits before the deal
+  split: 0.55, // seconds for the deck to split into two halves
+  halfOffset: 1.4, // how far apart the halves sit
+  riffleStep: 0.075, // seconds between cards dropping back onto the pile
+  dealStep: 0.1, // seconds between cards dealt into the hand
+  flight: 0.32, // seconds each card takes for a hop
+  lift: 0.45, // how high a hop arcs
 };
 
 export const FINALE = {

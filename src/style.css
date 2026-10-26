@@ -25,7 +25,17 @@ body {
   cursor: default;
 }
 
+/* The opening's fade from black (driven each frame by the game). */
+.fade {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 1;
+  pointer-events: none;
+}
+
 .credit {
+  z-index: 1;
   position: absolute;
   right: 16px;
   bottom: 12px;

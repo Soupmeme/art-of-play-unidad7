@@ -24,8 +24,14 @@ function scene(placements) {
     return letterSnapshot(l, p?.position ?? { x: 0, y: 0.5, z: -5 }, p?.rotation ?? UPRIGHT);
   });
 }
+// The game's rule (Kiwi's amendment): words only form from a stuck anchor.
 const resolve = (placements, previousLeaders) =>
   resolveWords(scene(placements), { params: WORD_RULES, layout: LAYOUT, previousLeaders });
+// The brief's original rule, still in the function behind requireAnchor:
+// false; used here to test pair, slot and lock mechanics away from the wall.
+const LEADER_RULES = { ...WORD_RULES, requireAnchor: false };
+const resolveFree = (placements, previousLeaders) =>
+  resolveWords(scene(placements), { params: LEADER_RULES, layout: LAYOUT, previousLeaders });
 const at = (x, y = 0.5, z = -9, extra = {}) => ({ position: { x, y, z }, ...extra });
 
 // Typeset spacing between two neighbouring slots of a word.
@@ -46,8 +52,8 @@ describe('warm, then pull, as correct neighbours approach in order', () => {
     expect(nearer.letters[ID.O].warmth).toBeGreaterThan(far.letters[ID.O].warmth);
   });
 
-  it('inside pullRadius: both free letters are pulled toward their slots', () => {
-    const r = resolve({ [ID.O]: at(0), [ID.F]: at(1.3) });
+  it('inside pullRadius, under the leader rule: both free letters are pulled toward their slots', () => {
+    const r = resolveFree({ [ID.O]: at(0), [ID.F]: at(1.3) });
     expect(r.words.OF.state).toBe('pulling');
     expect(r.letters[ID.O].pulled && r.letters[ID.F].pulled).toBe(true);
     const { slots } = r.words.OF;
@@ -86,7 +92,7 @@ describe('wrong order produces nothing', () => {
 
 describe('the duplicate A', () => {
   it('goes to the word whose neighbours are closer: A near R serves ART, A near L serves PLAY', () => {
-    const r = resolve({
+    const r = resolveFree({
       [ID.A1]: at(5, 0.5, -9), // the first A, lying next to L
       [ID.L]: at(4, 0.5, -9),
       [ID.A2]: at(-3, 0.5, -9), // the second A, next to R
@@ -105,7 +111,7 @@ describe('the duplicate A', () => {
   });
 
   it('a locked word keeps its A, the other A goes to the other word', () => {
-    const r = resolve({
+    const r = resolveFree({
       [ID.A1]: at(0, 1, -12, { status: STATUS.locked, lockedWord: 'PLAY' }),
       [ID.P]: at(-2, 1, -12, { status: STATUS.locked, lockedWord: 'PLAY' }),
       [ID.L]: at(-1, 1, -12, { status: STATUS.locked, lockedWord: 'PLAY' }),
@@ -116,6 +122,28 @@ describe('the duplicate A', () => {
     expect(r.words.PLAY.state).toBe('locked');
     expect(r.words.ART.members[0]).toBe(ID.A2);
     expect(r.letters[ID.R].pulled).toBe(true);
+  });
+});
+
+describe('words only form from a stuck anchor (the game rule)', () => {
+  it('a correct pair lying close on the table is warm, but nothing pulls and the word never gets slots', () => {
+    const r = resolve({ [ID.O]: at(0, 0.02), [ID.F]: at(1.1, 0.02) });
+    expect(r.words.OF.state).toBe('warm');
+    expect(r.letters[ID.O].warmth).toBeGreaterThan(0);
+    expect(r.letters[ID.O].pulled || r.letters[ID.F].pulled).toBe(false);
+    expect(r.words.OF.slots).toBeNull();
+  });
+
+  it('the same pair pulls once one of them is stuck in the backdrop', () => {
+    const r = resolve({ [ID.F]: at(1, 2.5, -11.99, { status: STATUS.stuck }), [ID.O]: at(-0.1, 2.5, -11.6) });
+    expect(r.words.OF.state).toBe('pulling');
+    expect(r.letters[ID.O].pulled).toBe(true);
+  });
+
+  it('letters lying in their exact slots on the table never become ready', () => {
+    const l = LAYOUT.OF;
+    const r = resolve({ [ID.O]: at(0, WORD_RULES.tableBaseline + l[0].dy), [ID.F]: at(l[1].dx, WORD_RULES.tableBaseline + l[1].dy) });
+    expect(r.words.OF.state).not.toBe('ready');
   });
 });
 
@@ -130,8 +158,8 @@ describe('anchors and leaders', () => {
     expect(r.words.OF.slots[0].z).toBeCloseTo(-11.99 + WORD_RULES.wallGap);
   });
 
-  it('a word with no anchor picks a leader among the pulled letters and stands on the table', () => {
-    const r = resolve({ [ID.P]: at(0, 0.02), [ID.L]: at(1.1, 0.02), [ID.A2]: at(2.2, 0.02) });
+  it('under the leader rule, a word with no anchor picks a leader among the pulled letters and stands on the table', () => {
+    const r = resolveFree({ [ID.P]: at(0, 0.02), [ID.L]: at(1.1, 0.02), [ID.A2]: at(2.2, 0.02) });
     const w = r.words.PLAY;
     expect(w.anchor).toBeNull();
     expect([ID.P, ID.L, ID.A2]).toContain(w.leader);
@@ -139,8 +167,8 @@ describe('anchors and leaders', () => {
     expect(w.slots[1].y).toBeCloseTo(WORD_RULES.tableBaseline + LAYOUT.PLAY[1].dy);
   });
 
-  it('keeps the previous leader while it still qualifies', () => {
-    const r = resolve({ [ID.P]: at(0, 0.02), [ID.L]: at(1.1, 0.02), [ID.A2]: at(2.2, 0.02) }, { PLAY: ID.P });
+  it('under the leader rule, keeps the previous leader while it still qualifies', () => {
+    const r = resolveFree({ [ID.P]: at(0, 0.02), [ID.L]: at(1.1, 0.02), [ID.A2]: at(2.2, 0.02) }, { PLAY: ID.P });
     expect(r.words.PLAY.leader).toBe(ID.P);
   });
 
@@ -168,8 +196,8 @@ describe('lock', () => {
   const inSlots = (word, x0, baseline, z, ids, extra = {}) =>
     Object.fromEntries(ids.map((id, i) => [id, at(x0 + LAYOUT[word][i].dx, baseline + LAYOUT[word][i].dy, z, extra)]));
 
-  it('is ready when every member sits in its slot, upright', () => {
-    const r = resolve(inSlots('OF', 0, WORD_RULES.tableBaseline, -9, [ID.O, ID.F]));
+  it('is ready when every member sits in its slot, upright (leader rule, on the table)', () => {
+    const r = resolveFree(inSlots('OF', 0, WORD_RULES.tableBaseline, -9, [ID.O, ID.F]));
     expect(r.words.OF.state).toBe('ready');
   });
 

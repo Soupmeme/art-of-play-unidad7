@@ -9,10 +9,12 @@ import { planThrow, clampAim } from '../input/throwMapping.js';
 import { THROW, WORLD, CARD } from '../config.js';
 
 // A session keeps one game alive across several throws, for sequences.
-export async function createSession({ seed = WORLD.seed } = {}) {
+// Sessions start from a known hand by default: reading order, no decoys in
+// the hand, no opening. Pass round: {} for the real game's round.
+export async function createSession({ seed = WORLD.seed, round = { shuffle: false, handDecoys: false, opening: false } } = {}) {
   const rapier = await initRapier();
   const physics = createPhysics(rapier);
-  const game = createGame(physics, { seed });
+  const game = createGame(physics, { seed, round });
   const advance = createStepper(physics);
   const hooks = { beforeStep: game.beforeStep, afterStep: game.afterStep };
   const step = () => advance(physics.step, hooks);
@@ -31,7 +33,7 @@ export async function createSession({ seed = WORLD.seed } = {}) {
   function throwLetter({ letterId, aim, pointer, holdAt, seconds = 3, params = THROW }) {
     const letter = game.card(letterId);
     const body = game.bodies[letterId];
-    const slot = game.fan[letterId] ?? { x: body.translation().x, y: 0.4 };
+    const slot = game.fanPose(letterId) ?? { x: body.translation().x, y: 0.4 };
     game.hold(letter);
     game.setHoldTarget(holdAt ?? { x: slot.x, y: slot.y + 0.6, z: 0 });
     wait(0.5); // half a second in the hand

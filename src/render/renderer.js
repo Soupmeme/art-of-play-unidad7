@@ -70,5 +70,13 @@ export function createRenderer(canvas) {
   resize();
   window.addEventListener('resize', resize);
 
-  return { renderer, scene, camera, render: () => renderer.render(scene, camera) };
+  // The opening's camera push: the camera starts `offset` units further back
+  // and eases into place, still looking at the same point. Staging (4d).
+  const lookAt = new THREE.Vector3(CAMERA.lookAt.x, CAMERA.lookAt.y, CAMERA.lookAt.z);
+  function setPush(offset) {
+    camera.position.set(CAMERA.position.x, CAMERA.position.y + offset * 0.25, CAMERA.position.z + offset);
+    camera.lookAt(lookAt);
+  }
+
+  return { renderer, scene, camera, setPush, render: () => renderer.render(scene, camera) };
 }

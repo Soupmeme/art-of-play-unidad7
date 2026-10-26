@@ -7,6 +7,7 @@ import { createCardMeshes, createTypeSurfaces, createColliderDebug } from './ren
 import { createHoldThrow } from './input/holdThrow.js';
 import { createStage } from './render/stage.js';
 import { isDevMode, createDevTools } from './dev/devTools.js';
+import { OPENING } from './config.js';
 
 async function main() {
   const rapier = await initRapier();
@@ -33,6 +34,7 @@ async function main() {
     window.aop = { game, physics, view, flick: createFlick({ canvas, camera: view.camera, game }) };
   }
 
+  const fade = document.getElementById('fade');
   const hooks = { beforeStep: game.beforeStep, afterStep: game.afterStep };
   let last = performance.now();
   function frame(now) {
@@ -40,6 +42,9 @@ async function main() {
     const frameSeconds = Math.min((now - last) / 1000, 0.25);
     last = now;
     advance(frameSeconds, hooks);
+    const curtain = game.curtain;
+    fade.style.opacity = curtain.black.toFixed(3);
+    view.setPush(curtain.push * OPENING.dollyFrom);
     cardMeshes.sync(now / 1000);
     typeSurfaces.update(now / 1000);
     stage.update(now / 1000);

@@ -283,3 +283,27 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 - **Decision:** the big marquee words are words of the show, spelled only with the letters of ART OF PLAY, so rule 1 holds (and the font file only carries those letters): TAROT, TRAP, FLOAT, PARLOR, PROP, PORTAL, RAPT, PARROT, LOFT, ROYAL, TOP. Never ART, OF or PLAY, nor words containing ART (PARTY was rejected for that). Each alludes to the act: tarot cards, the trap door, levitation, parlour magic, props, the vanishing portal, a rapt audience, the magician's parrot, the fly loft, the royal flush, the big top. They also work as misdirection, like the decoys.
 - **Decision:** the small cells now show letters picked by a hash of their position, each re-picking now and then, so the background type never spells the phrase either.
 - **Alternative offered to Kiwi:** words with letters outside the phrase (SHOW, MAGIC, CIRCUS) would need an amendment to rule 1 and a regenerated font file.
+
+## 2026-10-25, shuffled hand, opening, words need an anchor (Kiwi's direction)
+
+### Decoys faster again
+- **Decision:** first shed after 5 s of play (was 8), then every 4 to 8 s (was 6 to 12). Up to 4 decoys alive at once (hand and shed together; ids 9 to 13 reserved).
+
+### Words only form from a stuck anchor (resolves E8)
+- **Decision:** `WORD_RULES.requireAnchor = true`. A word with no stuck member gets no slots: its correct pairs can still be warm (the hint), but nothing pulls and nothing locks. The brief's leader rule is kept in the function behind `requireAnchor: false`, and the unit tests exercise pair, slot and lock mechanics through it, plus new tests for the anchor rule (a pair lying in its exact slots on the table never becomes ready).
+- **Why warmth stays:** it is the hangman feedback. A warm pair that will not join on the table teaches that words need the backdrop.
+
+### The shuffled hand
+- **Decision:** at the start of every round the hand is a seeded random order of the nine letters plus 1 or 2 decoys (`DECOYS.inHandMin/Max`), redrawn until no hint pair (AR, RT, OF, PL, LA, AY) sits side by side (`shuffleHand` in `src/staging/opening.js`; tested over 300 seeds). Word gaps are dropped; the hand is squeezed to at most 6.8 units of arc so 11 cards still fit (they overlap more, like a real hand).
+- **Decoys in the hand** are dealt like any card, show the faint tell at rest, and only start ageing once played.
+- **Consequence:** the fan no longer reads ART OF PLAY at rest (brief 4.1, 6). The finale is now the reading moment.
+
+### The opening (staging, 4d)
+- **Decision:** each round opens with:
+  - a fade from black over 1.2 s (an overlay above the canvas, below the credit);
+  - a camera push-in from 1.6 units back (and a little up) over 2.8 s, looking at the same point;
+  - the dealer's shuffle, played on kinematic bodies from keyframe tracks: the deck sits in reading order (decoys on top), splits into two halves (0.55 s), riffles back onto the pile one card every 0.075 s, then deals into the hand left to right one card every 0.1 s, each move a 0.32 s hop arcing 0.45 up. About 3.3 s with 11 cards.
+- Nothing can be held until the deal ends. The play clock (and so decoy shedding) starts at the first hold, as before.
+- `startRound()` builds a round: it clears decoys, locks and the finale, reshuffles from a new round seed, and plays the opening. The dev panel's button now reads "new round (shuffle and deal)"; M4's quiet and collapse resets will call it.
+- **Tests:** shuffled hands are permutations, seeded, free of hint pairs; tracks start every card on the deck, split it in two, deal left to right and end each card in its slot; the fade and push run 1 to 0; a real round deals 9 plus 1 or 2 decoys, blocks holding until the deal ends, and settles every card in its slot; hand decoys do not age; a new round deals a different shuffle.
+- **Test sessions** start from a known hand (reading order, no hand decoys, no opening) unless they ask for the real round, so the throw, effect and sequence measurements stay comparable.

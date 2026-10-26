@@ -84,10 +84,10 @@ export function createDevPanel({ game, colliderDebug }) {
   d.add(shedNow, 'shed a decoy now');
 
   const actions = {
-    'return letters to fan': () => game.returnAllToFan(),
+    'new round (shuffle and deal)': () => game.startRound(),
     'show colliders': false,
   };
-  gui.add(actions, 'return letters to fan');
+  gui.add(actions, 'new round (shuffle and deal)');
   gui.add(actions, 'show colliders').onChange((v) => {
     colliderDebug.lines.visible = v;
   });

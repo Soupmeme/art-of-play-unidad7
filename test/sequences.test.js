@@ -71,16 +71,16 @@ describe('each word can be completed deliberately', () => {
     note(seq, 'finale: all nine on one line', g, ID.Y);
   }, 60000);
 
-  it('a word with no anchor locks standing on the table', async () => {
+  it('a word with no anchor never forms: O and F lying in order stay warm on the table', async () => {
     const s = await createSession();
     const g = s.game;
     // A soft F lands on the table near the wall; an O dropped beside it, on its left, is pulled in.
     g.debugPlace(g.letters[ID.F], { x: 1, y: 0.02, z: -10 }, { x: -Math.SQRT1_2, y: 0, z: 0, w: Math.SQRT1_2 });
     g.debugPlace(g.letters[ID.O], { x: -0.1, y: 0.02, z: -10.1 }, { x: -Math.SQRT1_2, y: 0, z: 0, w: Math.SQRT1_2 });
     s.wait(3);
-    note('no anchor', 'O and F lying flat in order, 1.1 apart: they stand up and lock', g, ID.O);
-    expect(g.resolution.words.OF.state).toBe('locked');
-    expect(g.bodies[ID.O].translation().y).toBeGreaterThan(0.4);
+    note('no anchor', 'O and F lying flat in order, 1.1 apart: warm, but no pull and no lock (words need a stuck anchor)', g, ID.O);
+    expect(g.resolution.words.OF.state).toBe('warm');
+    expect(g.letters[ID.O].status).not.toBe(STATUS.locked);
   }, 30000);
 });
 

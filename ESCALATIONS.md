@@ -36,8 +36,9 @@ Items that could change the concept or the grade (brief, section 3). Status: ope
 - **Resolution:** Kiwi chose wall-shed decoys with a graded tell, as inert noise. Amends the brief's "do not duplicate letters" (the nine stay exactly nine and always solvable) and adds rule 4 item (e). Recorded in CLAUDE.md; details in DECISIONS.md.
 - **Status:** resolved.
 
-## E8. Words can form trivially in front of the hand (open)
+## E8. Words could form trivially in front of the hand
 - **Raised:** 2026-10-25, by Claude, found while testing the stage build.
 - **Observation:** a word with no anchor locks wherever its letters lie in order (brief 5.5: "if it has none, the leader is the member nearest the group's centroid"). Letters dropped from the hand land on the stage right in front of the fan, roughly in fan order, so dropping A then R then T beside each other assembles ART without throwing anything. Verified headless: O and F lying 1.1 apart in order stand up and lock (test/sequences.test.js, "no anchor"). This undercuts Kiwi's aim of making the word harder to figure out.
 - **Proposal:** words only form at the backdrop. Either (a) a word needs a stuck anchor before anything pulls (drop the leader rule), or (b) pulling only happens near the backdrop (for example deeper than z = -9). (a) is the simpler rule to explain: "Stick commits; a word grows from a letter in the wall." Both are a change to brief 5.5, so Kiwi decides.
-- **Status:** open, waiting on Kiwi.
+- **Resolution:** Kiwi, 2026-10-25: option (a), "the words should only be formed when stuck in the backdrop, that's kinda the point". Implemented as `WORD_RULES.requireAnchor` (default true).
+- **Status:** resolved.

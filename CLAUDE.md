@@ -22,6 +22,9 @@ The full brief is `docs/unidad7-brief-v2.md`. Read it before any non-trivial cha
 
 - 2026-10-25, the stage: the playing field is a magic stage. Floor a plain ground; curtains and marquee bulbs built from the phrase's letters; the backdrop (the wall) scrolls marquee words of the show spelled only with the letters of ART OF PLAY, never the phrase itself, so the backdrop no longer gives the answer away.
 
+- 2026-10-25, the round (amends brief 4.1, 5.5 and 6 "the fan at rest reads ART OF PLAY"): every round opens with a fade from black, a camera push-in and a dealer's shuffle (split, riffle, deal), all staging (rule 4d). The hand is dealt in a seeded random order with no hint pair (AR, RT, OF, PL, LA, AY) side by side, plus one or two decoys. The fan no longer reads the phrase; the finale is the reading moment.
+- 2026-10-25, words need an anchor (amends brief 5.5, resolves E8): a word only pulls and locks once one of its letters is stuck in the backdrop. Pairs elsewhere can still be warm (the hint), but nothing pulls. The brief's leader rule stays in the word function behind `requireAnchor: false`.
+
 ## Working notes
 
 - Log every non-trivial decision in `DECISIONS.md` (date, decision, alternatives, why). Escalations go in `ESCALATIONS.md`.

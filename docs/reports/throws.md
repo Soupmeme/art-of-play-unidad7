@@ -16,7 +16,7 @@ Measurements of the current mapping, not playtest results. Coordinates in card h
 | full power, letter 8 | Y | throw | 1.00 | 2.00, 4.20 | 2.01, 4.18 | 0.65 | 1.35, 0.05, -5.06 | flying |
 | flick 3.5 H/s | T | throw | 1.00 | 0.00, 3.00 | -0.01, 3.00 | 0.60 | -0.00, 3.00, -12.00 | stuck |
 | flick 1.8 H/s | T | throw | 0.60 | 0.00, 3.00 | -0.00, 1.75 | 0.80 | 0.26, 0.01, -10.41 | onTable |
-| flick 1.0 H/s | T | throw | 0.20 | 0.00, 3.00 | none |  | 0.09, 0.01, -11.15 | onTable |
+| flick 1.0 H/s | T | throw | 0.20 | 0.00, 3.00 | none |  | 0.09, 0.01, -11.14 | onTable |
 | slow release | F | drop | 0.00 |  | none |  | 0.18, 0.01, -5.07 | onTable |
 | flick up-right | T | throw | 1.00 | 0.00, 2.50 | -0.11, 2.59 | 0.58 | -0.10, 2.59, -12.00 | stuck |
 | flick up-left | T | throw | 1.00 | 0.00, 2.50 | 0.08, 2.60 | 0.58 | 0.07, 2.60, -12.00 | stuck |

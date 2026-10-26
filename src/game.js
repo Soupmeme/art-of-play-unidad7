@@ -10,11 +10,12 @@ import { stickCheck, embedPose, curveAcceleration, rippleKicks, rippleShake } fr
 import { createDecoyState, createShedder, decoyTell, decoyErosion } from './letters/decoys.js';
 import { resolveWords, letterSnapshot, impostorWarmth } from './words/resolve.js';
 import { finaleLayout, finalePose } from './staging/finale.js';
+import { shuffleHand, openingTracks, trackPose, openingCurtain } from './staging/opening.js';
 import { layoutWall, createBrickBodies } from './wall/wall.js';
 import { createRoom } from './physics/room.js';
 import { applyAirDrag, steerArrive, steerUpright } from './physics/forces.js';
 import { createRng, deriveSeed } from './core/rng.js';
-import { CARD, AIR, ROOM, WALL, FAN, HOLD, EFFECTS, WORD_RULES, DECOYS, FINALE, STATUS_RULES, WORLD } from './config.js';
+import { CARD, AIR, ROOM, WALL, FAN, HOLD, EFFECTS, WORD_RULES, DECOYS, OPENING, FINALE, STATUS_RULES, WORLD } from './config.js';
 
 // Collision groups, Rapier's packed form: (membership << 16) | filter.
 // NON-PHYSICAL (4d): letters resting in the fan only touch the room, so a
@@ -33,9 +34,15 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const ZERO = { x: 0, y: 0, z: 0 };
 const IDENTITY = { x: 0, y: 0, z: 0, w: 1 };
 const IMPACT_HISTORY = 16;
-const MAX_DECOYS = 3; // ids 9, 10, 11 are reserved for decoys
+const MAX_DECOYS = 5; // ids 9 to 13 are reserved for decoys
 
-export function createGame(physics, { seed = WORLD.seed } = {}) {
+// round: what a new round does. The defaults are the real game; tests turn
+// parts off to get a known starting hand (reading order, no decoys, no opening).
+//   shuffle:    the hand is dealt in a random order with no hint pair side by side
+//   handDecoys: one or two decoys are shuffled into the hand
+//   opening:    the dealer's shuffle, fade-in and camera push play first
+export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {} } = {}) {
+  const roundRules = { shuffle: true, handDecoys: true, opening: true, ...roundOptions };
   const { rapier, world } = physics;
 
   const letters = createLetters();
@@ -53,16 +60,28 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   const preVelocity = []; // velocity before this step: the impact velocity
   const lastRipple = [];
 
-  const fan = fanLayout({
-    advances: letters.map((l) => forms[l.id].advance),
-    wordStarts: wordStarts(),
-    center: FAN.center,
-    radius: FAN.radius,
-    overlap: FAN.overlap,
-    wordGap: FAN.wordGap,
-    layerStep: FAN.layerStep,
-    sag: FAN.sag,
-  });
+  // The hand: card ids in fan order, and the fan pose of each slot.
+  let handOrder = [];
+  let fan = [];
+  const slotOf = new Map();
+  function layoutHand(order) {
+    handOrder = order;
+    const inReadingOrder = order.every((id, i) => id === i) && order.length === letters.length;
+    fan = fanLayout({
+      advances: order.map((id) => forms[id].advance),
+      wordStarts: inReadingOrder ? wordStarts() : [],
+      center: FAN.center,
+      radius: FAN.radius,
+      overlap: FAN.overlap,
+      wordGap: FAN.wordGap,
+      layerStep: FAN.layerStep,
+      sag: FAN.sag,
+      maxSpan: FAN.maxSpan,
+    });
+    slotOf.clear();
+    order.forEach((id, slot) => slotOf.set(id, slot));
+  }
+  const fanPose = (id) => fan[slotOf.get(id)];
 
   const bricks = layoutWall(WALL);
   const brickBodies = createBrickBodies(physics, bricks, WALL);
@@ -81,7 +100,7 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   // Idle breathing of the fan. NON-PHYSICAL (4d): the fan is a kinematic rack
   // that holds the letters at rest; it is part of the staging, not of play.
   const swayRng = createRng(deriveSeed(seed, 'sway'));
-  const phases = letters.map(() => swayRng.range(0, Math.PI * 2));
+  const phases = Array.from({ length: letters.length + MAX_DECOYS }, () => swayRng.range(0, Math.PI * 2));
 
   function createCardBody(card, desc) {
     const body = world.createRigidBody(desc.setAngularDamping(CARD.angularDamping).setCcdEnabled(true));
@@ -106,11 +125,7 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   }
 
   for (const letter of letters) {
-    const pose = fan[letter.id];
-    const body = createCardBody(
-      letter,
-      rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(pose.x, pose.y, pose.z).setRotation(quatZ(pose.angle)),
-    );
+    const body = createCardBody(letter, rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(OPENING.deck.x, OPENING.deck.y, OPENING.deck.z));
     setGroups(body, IN_FAN);
   }
 
@@ -122,7 +137,10 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   let lastContact = null;
   const brickStress = new Float32Array(bricks.length); // read by the decay scheduler (M4)
   const impacts = []; // recent wall impacts, for the renderer: { kind, x, y, time, seq }
-  const shedder = createShedder(seed, DECOYS, wall);
+  let roundIndex = 0;
+  let roundSeed = seed;
+  let shedder = createShedder(seed, DECOYS, wall);
+  let opening = null; // { start, tracks, duration } while the dealer shuffles
 
   // Words: typeset layout per word, the latest resolution, locks and finale.
   const layout = Object.fromEntries(WORDS.map((w) => [w.text, wordLayout(w.text, WORD_RULES.tracking)]));
@@ -136,6 +154,8 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     return letters.map((l) => letterSnapshot(l, bodies[l.id].translation(), bodies[l.id].rotation()));
   }
 
+  startRound();
+
   // Side boundary x at a given depth (the rails converge toward the camera).
   function sideLimitAt(z) {
     const t = clamp((z - ROOM.frontZ) / (WALL.z - ROOM.frontZ), 0, 1);
@@ -143,7 +163,7 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   }
 
   function hold(card) {
-    if (!HOLDABLE.has(card.status) || held) return false;
+    if (!HOLDABLE.has(card.status) || held || opening) return false;
     const body = bodies[card.id];
     body.setBodyType(rapier.RigidBodyType.Dynamic, true);
     body.setGravityScale(0, true); // the hand carries the weight while held
@@ -191,7 +211,7 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   function placeInFan(letter) {
     unstick(letter);
     const body = bodies[letter.id];
-    const pose = fan[letter.id];
+    const pose = fanPose(letter.id);
     body.setBodyType(rapier.RigidBodyType.KinematicPositionBased, true);
     body.setGravityScale(1, true);
     body.setLinvel(ZERO, true);
@@ -205,15 +225,54 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     letter.lockedWord = null;
   }
 
-  // Dev only for now (M4's reset will stage this): every letter back in the
-  // hand, no decoys, no words locked, no finale, play clock stopped.
-  function returnAllToFan() {
-    if (held) return;
-    letters.forEach(placeInFan);
+  // A decoy dealt into the hand at the start of a round (Kiwi's amendment).
+  function addHandDecoy(char) {
+    const id = freeDecoyIds.shift();
+    if (id === undefined) return null;
+    const decoy = createDecoyState(id, char);
+    decoy.status = STATUS.inFan;
+    forms[id] = formOf(char);
+    const body = createCardBody(decoy, rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(OPENING.deck.x, OPENING.deck.y, OPENING.deck.z));
+    setGroups(body, IN_FAN);
+    decoys.push(decoy);
+    cardById.set(id, decoy);
+    return decoy;
+  }
+
+  // A new round: every letter back in the deck, decoys gone, no words locked,
+  // play clock stopped; then a fresh hand is shuffled (with one or two decoys)
+  // and, with the opening on, the dealer's shuffle plays it in. Used at the
+  // start, by the dev panel, and by M4's resets.
+  function startRound() {
+    if (held) release({ kind: 'drop' });
     [...decoys].forEach(removeDecoy);
     lockedWords.length = 0;
     finale = null;
     playStart = null;
+    roundSeed = deriveSeed(seed, `round ${roundIndex++}`);
+    shedder = createShedder(roundSeed, DECOYS, wall);
+    const rng = createRng(deriveSeed(roundSeed, 'hand'));
+
+    const capacity = Math.max(0, Math.min(DECOYS.count, MAX_DECOYS));
+    const handDecoys = roundRules.handDecoys ? Math.min(capacity, rng.int(DECOYS.inHandMin, DECOYS.inHandMax + 1)) : 0;
+    for (let i = 0; i < handDecoys; i++) addHandDecoy(rng.pick([...DECOYS.chars]));
+
+    const hand = cards();
+    layoutHand(roundRules.shuffle ? shuffleHand(hand, deriveSeed(roundSeed, 'shuffle')) : hand.map((c) => c.id));
+    hand.forEach(placeInFan);
+
+    if (roundRules.opening) {
+      const deckOrder = hand.map((c) => c.id); // the deck starts in reading order, decoys on top
+      const { tracks, duration } = openingTracks({ deckOrder, handOrder, fan, params: OPENING });
+      opening = { start: time, tracks, duration };
+      for (const card of hand) {
+        const pose = trackPose(tracks.get(card.id), 0, OPENING.lift);
+        bodies[card.id].setTranslation(pose.position, true);
+        bodies[card.id].setRotation(pose.rotation, true);
+      }
+    } else {
+      opening = null;
+    }
   }
 
   // Test and dev helper only (never used in play): puts a card at a pose as a
@@ -242,6 +301,7 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   // under ordinary physics.
   function shedDecoy(spec) {
     const id = freeDecoyIds.shift();
+    if (id === undefined) return null;
     const decoy = createDecoyState(id, spec.char);
     forms[id] = formOf(spec.char);
     const z = WALL.z + CARD.thickness;
@@ -448,7 +508,7 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     const letterSnaps = decoys.length ? snapshots() : null;
     for (const decoy of [...decoys]) {
       const body = bodies[decoy.id];
-      if (decoy.status !== STATUS.held) decoy.age += dt;
+      if (decoy.status !== STATUS.held && decoy.status !== STATUS.inFan) decoy.age += dt; // a decoy only ages in play
       if (decoy.status === STATUS.stuck && decoy.meltAge === null) decoy.meltAge = 0;
       if (decoy.meltAge !== null) decoy.meltAge += dt;
       const warmth = impostorWarmth(letterSnapshot(decoy, body.translation(), body.rotation()), letterSnaps, {
@@ -466,6 +526,7 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
 
   function beforeStep(dt) {
     time += dt;
+    if (opening && time - opening.start >= opening.duration) opening = null;
     if (finale) {
       for (const letter of letters) {
         const pose = finalePose(finale.from[letter.id], finale.to[letter.id], time - finale.start, FINALE.duration);
@@ -492,7 +553,13 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
       const body = bodies[card.id];
       if (card.status === STATUS.inFan) {
         if (finale) continue;
-        const pose = fan[card.id];
+        if (opening) {
+          const pose = trackPose(opening.tracks.get(card.id), time - opening.start, OPENING.lift);
+          body.setNextKinematicTranslation(pose.position);
+          body.setNextKinematicRotation(pose.rotation);
+          continue;
+        }
+        const pose = fanPose(card.id);
         const wave = Math.sin((2 * Math.PI * time) / FAN.breathePeriod + phases[card.id]);
         body.setNextKinematicTranslation({ x: pose.x, y: pose.y + FAN.breatheAmplitude * wave, z: pose.z });
         body.setNextKinematicRotation(quatZ(pose.angle + FAN.breatheRotation * wave));
@@ -576,7 +643,13 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     card: (id) => cardById.get(id),
     bodies,
     forms,
-    fan,
+    get fan() {
+      return fan;
+    },
+    get handOrder() {
+      return handOrder;
+    },
+    fanPose,
     bricks,
     brickBodies,
     brickStress,
@@ -588,7 +661,8 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     setHoldTarget,
     release,
     placeInFan,
-    returnAllToFan,
+    startRound,
+    returnAllToFan: startRound, // dev panel name, kept
     debugPlace,
     shedDecoy,
     beforeStep,
@@ -611,6 +685,14 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     // 0 before the finale, rising to 1 as the line forms.
     get finaleProgress() {
       return finale ? Math.min(1, (time - finale.start) / FINALE.duration) : 0;
+    },
+    // While a round opens: { black, push } from 1 down to 0 (fade from black,
+    // camera push-in); both 0 once settled.
+    get curtain() {
+      return opening ? openingCurtain(time - opening.start, OPENING) : { black: 0, push: 0 };
+    },
+    get opening() {
+      return !!opening;
     },
     get playTime() {
       return playStart === null ? 0 : time - playStart;

@@ -18,10 +18,13 @@
 //      Wrong order gives nothing at all: cold is silence.
 //   3. Slots. A word with a stuck member is laid out from that anchor (the
 //      lowest slot if several); other stuck members must already sit within
-//      snapDistance of their slots, otherwise the word is unresolvable. A
-//      word with no anchor is laid out from its leader, the pulled member
-//      nearest the group's centroid (kept from the last step while it still
-//      qualifies), standing on the table.
+//      snapDistance of their slots, otherwise the word is unresolvable.
+//      With requireAnchor (Kiwi's amendment, the default) a word with no
+//      anchor has no slots: its pairs can still be warm, but nothing pulls,
+//      so words only form from a letter stuck in the backdrop. Without it
+//      (the brief's original rule), a word with no anchor is laid out from
+//      its leader, the pulled member nearest the group's centroid (kept from
+//      the last step while it still qualifies), standing on the table.
 //   4. Lock. When every member is in play and within snapDistance of its
 //      slot, upright and facing the camera, the word is ready to lock.
 
@@ -159,7 +162,7 @@ export function resolveWords(letters, { params, layout, right = { x: 1, y: 0, z:
     if (stuck.length) {
       anchor = slots[stuck[0]].id;
       base = { slot: stuck[0], position: slots[stuck[0]].position, anchored: true };
-    } else if (pulledSlots.size) {
+    } else if (pulledSlots.size && !params.requireAnchor) {
       const group = [...pulledSlots];
       const centroid = group.reduce(
         (c, i) => ({ x: c.x + slots[i].position.x / group.length, y: c.y + slots[i].position.y / group.length, z: c.z + slots[i].position.z / group.length }),
@@ -189,7 +192,7 @@ export function resolveWords(letters, { params, layout, right = { x: 1, y: 0, z:
     const unresolvable =
       stuck.length > 1 && stuck.slice(1).some((i) => dist(slots[i].position, slotPositions[i]) > params.snapDistance);
 
-    const pulled = unresolvable ? [] : [...pulledSlots].filter((i) => slots[i].status !== 'stuck');
+    const pulled = unresolvable || !slotPositions ? [] : [...pulledSlots].filter((i) => slots[i].status !== 'stuck');
 
     const ready =
       !unresolvable &&
