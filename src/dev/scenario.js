@@ -29,9 +29,9 @@ export async function createSession({ seed = WORLD.seed } = {}) {
   //   params: throw mapping (default THROW)
   // }
   function throwLetter({ letterId, aim, pointer, holdAt, seconds = 3, params = THROW }) {
-    const letter = game.letters[letterId];
+    const letter = game.card(letterId);
     const body = game.bodies[letterId];
-    const slot = game.fan[letterId];
+    const slot = game.fan[letterId] ?? { x: body.translation().x, y: 0.4 };
     game.hold(letter);
     game.setHoldTarget(holdAt ?? { x: slot.x, y: slot.y + 0.6, z: 0 });
     wait(0.5); // half a second in the hand

@@ -18,6 +18,8 @@ The full brief is `docs/unidad7-brief-v2.md`. Read it before any non-trivial cha
 
 - 2026-10-25, rule 1, wall and side lanes: the wall and the side lanes are solid single-colour surfaces (oxblood, set off from the green felt), not letter-bricks. Their only marking is a type animation made of the phrase's letters: a grid of character cells (text-mode, ASCII style) in which a large ART OF PLAY scrolls sideways in whole-cell steps with jagged row glitches. Physics still uses a grid of invisible brick colliders behind the wall. The letter-cards stay die-cut letterforms.
 
+- 2026-10-25, decoys (amends the brief's "do not duplicate letters" and adds a fifth non-physical item to rule 4): the wall sheds extra letter-cards, made only of the phrase's letters, on a seeded schedule once play has started (at most 3 at once; `DECOYS.count = 0` turns them off). A decoy obeys its letter's family but never warms, pulls or locks, so the phrase stays exactly nine letters and always solvable. It shows a graded tell (faint glitch at rest, stronger held, strongest near the slot it pretends to fill). It never stays: stuck in the wall it melts back into the type, loose it erodes away after its lifetime. Rule 4 gains item (e): decoy shedding, melting and eroding, tagged `NON-PHYSICAL (4e)`.
+
 ## Working notes
 
 - Log every non-trivial decision in `DECISIONS.md` (date, decision, alternatives, why). Escalations go in `ESCALATIONS.md`.

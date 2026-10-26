@@ -38,11 +38,12 @@ export function createHoldThrow({ canvas, camera, game, meshes }) {
   function letterUnderPointer() {
     const hits = raycaster.intersectObjects(meshes, false);
     for (const h of hits) {
-      const letter = game.letters[h.object.userData.letterId];
-      if (HOLDABLE.has(letter.status)) return letter;
+      const card = game.card(h.object.userData.cardId);
+      if (card && HOLDABLE.has(card.status)) return card;
     }
-    const candidates = game.letters
-      .filter((letter) => HOLDABLE.has(letter.status))
+    const candidates = game
+      .cards()
+      .filter((card) => HOLDABLE.has(card.status))
       .map((letter) => {
         const body = game.bodies[letter.id];
         const points = game.forms[letter.id].boxes.map((b) => {

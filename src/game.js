@@ -1,18 +1,20 @@
-// The game state: letters, wall and room, and what happens each physics step.
-// Rendering and input live elsewhere; this module only touches bodies and data.
+// The game state: letter-cards (the nine letters plus any decoys), wall and
+// room, and what happens each physics step. Rendering and input live
+// elsewhere; this module only touches bodies and data.
 
 import { STATUS, HOLDABLE, WORDS, createLetters, wordStarts } from './letters/letters.js';
 import { FAMILY } from './letters/families.js';
 import { letterForm, wordLayout } from './letters/glyphs.js';
 import { fanLayout } from './letters/fan.js';
 import { stickCheck, embedPose, curveAcceleration, rippleKicks, rippleShake } from './letters/effects.js';
-import { resolveWords, letterSnapshot } from './words/resolve.js';
+import { createDecoyState, createShedder, decoyTell, decoyErosion } from './letters/decoys.js';
+import { resolveWords, letterSnapshot, impostorWarmth } from './words/resolve.js';
 import { finaleLayout, finalePose } from './staging/finale.js';
 import { layoutWall, createBrickBodies } from './wall/wall.js';
 import { createRoom } from './physics/room.js';
 import { applyAirDrag, steerArrive, steerUpright } from './physics/forces.js';
 import { createRng, deriveSeed } from './core/rng.js';
-import { CARD, AIR, ROOM, WALL, FAN, HOLD, EFFECTS, WORD_RULES, FINALE, STATUS_RULES, WORLD } from './config.js';
+import { CARD, AIR, ROOM, WALL, FAN, HOLD, EFFECTS, WORD_RULES, DECOYS, FINALE, STATUS_RULES, WORLD } from './config.js';
 
 // Collision groups, Rapier's packed form: (membership << 16) | filter.
 // NON-PHYSICAL (4d): letters resting in the fan only touch the room, so a
@@ -29,17 +31,31 @@ const quatZ = (angle) => ({ x: 0, y: 0, z: Math.sin(angle / 2), w: Math.cos(angl
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const ZERO = { x: 0, y: 0, z: 0 };
+const IDENTITY = { x: 0, y: 0, z: 0, w: 1 };
 const IMPACT_HISTORY = 16;
+const MAX_DECOYS = 3; // ids 9, 10, 11 are reserved for decoys
 
 export function createGame(physics, { seed = WORLD.seed } = {}) {
   const { rapier, world } = physics;
 
   const letters = createLetters();
-  const forms = letters.map((l) =>
-    letterForm(l.char, { capHeight: CARD.capHeight, depth: CARD.thickness, colliderCell: CARD.colliderCell }),
-  );
+  const decoys = [];
+  const freeDecoyIds = Array.from({ length: MAX_DECOYS }, (_, i) => letters.length + i);
+  const cardById = new Map(letters.map((l) => [l.id, l]));
+  const cards = () => (decoys.length ? letters.concat(decoys) : letters);
+
+  // Per-card data, indexed by card id (decoy slots are filled while alive).
+  const formOf = (char) =>
+    letterForm(char, { capHeight: CARD.capHeight, depth: CARD.thickness, colliderCell: CARD.colliderCell });
+  const forms = letters.map((l) => formOf(l.char));
+  const bodies = [];
+  const colliderHandles = [];
+  const preVelocity = []; // velocity before this step: the impact velocity
+  const lastRipple = [];
+  const joints = [];
+
   const fan = fanLayout({
-    advances: forms.map((f) => f.advance),
+    advances: letters.map((l) => forms[l.id].advance),
     wordStarts: wordStarts(),
     center: FAN.center,
     radius: FAN.radius,
@@ -58,51 +74,57 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   };
   const room = createRoom(physics, ROOM, WALL.z);
 
-  // Which collider belongs to which brick or letter, to read contact events.
+  // Which collider belongs to which brick or card, to read contact events.
   const brickOfCollider = new Map();
   brickBodies.forEach((body, index) => brickOfCollider.set(body.collider(0).handle, index));
-  const letterOfCollider = new Map();
+  const cardOfCollider = new Map();
 
   // Idle breathing of the fan. NON-PHYSICAL (4d): the fan is a kinematic rack
   // that holds the letters at rest; it is part of the staging, not of play.
   const swayRng = createRng(deriveSeed(seed, 'sway'));
   const phases = letters.map(() => swayRng.range(0, Math.PI * 2));
 
-  const bodies = letters.map((letter, i) => {
-    const pose = fan[i];
-    const body = world.createRigidBody(
-      rapier.RigidBodyDesc.kinematicPositionBased()
-        .setTranslation(pose.x, pose.y, pose.z)
-        .setRotation(quatZ(pose.angle))
-        .setAngularDamping(CARD.angularDamping)
-        .setCcdEnabled(true),
-    );
-    const ripple = letter.family === FAMILY.ripple;
-    for (const b of forms[i].boxes) {
-      const desc = rapier.ColliderDesc.cuboid(b.halfWidth, b.halfHeight, CARD.thickness / 2)
+  function createCardBody(card, desc) {
+    const body = world.createRigidBody(desc.setAngularDamping(CARD.angularDamping).setCcdEnabled(true));
+    const ripple = card.family === FAMILY.ripple;
+    colliderHandles[card.id] = forms[card.id].boxes.map((b) => {
+      const c = rapier.ColliderDesc.cuboid(b.halfWidth, b.halfHeight, CARD.thickness / 2)
         .setTranslation(b.x, b.y, 0)
         .setDensity(CARD.density)
         .setFriction(CARD.friction)
         .setRestitution(ripple ? EFFECTS.ripple.restitution : CARD.restitution)
-        .setCollisionGroups(IN_FAN)
         .setActiveEvents(rapier.ActiveEvents.COLLISION_EVENTS);
       // Ripple letters keep their own bounce whatever they hit (4a).
-      if (ripple) desc.setRestitutionCombineRule(rapier.CoefficientCombineRule.Max);
-      letterOfCollider.set(world.createCollider(desc, body).handle, letter.id);
-    }
+      if (ripple) c.setRestitutionCombineRule(rapier.CoefficientCombineRule.Max);
+      const handle = world.createCollider(c, body).handle;
+      cardOfCollider.set(handle, card.id);
+      return handle;
+    });
+    bodies[card.id] = body;
+    preVelocity[card.id] = { ...ZERO };
+    lastRipple[card.id] = -Infinity;
+    joints[card.id] = null;
     return body;
-  });
+  }
+
+  for (const letter of letters) {
+    const pose = fan[letter.id];
+    const body = createCardBody(
+      letter,
+      rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(pose.x, pose.y, pose.z).setRotation(quatZ(pose.angle)),
+    );
+    setGroups(body, IN_FAN);
+  }
 
   let time = 0;
+  let playStart = null; // time of the first hold: the play clock starts there
   let held = null;
   let holdTarget = null;
   let lastPlan = null;
   let lastContact = null;
-  const preVelocity = letters.map(() => ({ ...ZERO })); // velocity before this step: the impact velocity
-  const lastRipple = letters.map(() => -Infinity);
-  const joints = letters.map(() => null);
   const brickStress = new Float32Array(bricks.length); // read by the decay scheduler (M4)
-  const impacts = []; // recent wall impacts, for the renderer: { kind, x, y, time }
+  const impacts = []; // recent wall impacts, for the renderer: { kind, x, y, time, seq }
+  const shedder = createShedder(seed, DECOYS, wall);
 
   // Words: typeset layout per word, the latest resolution, locks and finale.
   const layout = Object.fromEntries(WORDS.map((w) => [w.text, wordLayout(w.text, WORD_RULES.tracking)]));
@@ -122,15 +144,16 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     return lerp(ROOM.nearX, ROOM.farX, t);
   }
 
-  function hold(letter) {
-    if (!HOLDABLE.has(letter.status) || held) return false;
-    const body = bodies[letter.id];
+  function hold(card) {
+    if (!HOLDABLE.has(card.status) || held) return false;
+    const body = bodies[card.id];
     body.setBodyType(rapier.RigidBodyType.Dynamic, true);
     body.setGravityScale(0, true); // the hand carries the weight while held
     setGroups(body, IN_PLAY);
-    letter.status = STATUS.held;
-    held = letter;
+    card.status = STATUS.held;
+    held = card;
     holdTarget = body.translation();
+    playStart ??= time;
     return true;
   }
 
@@ -143,7 +166,7 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     };
   }
 
-  // plan comes from planThrow: a drop keeps the letter's current motion,
+  // plan comes from planThrow: a drop keeps the card's current motion,
   // a throw sets its launch velocity and spin. Flight is then pure physics,
   // plus the letter's own effect.
   function release(plan) {
@@ -159,14 +182,14 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     held.status = STATUS.flying;
     held.restTime = 0;
     held.airborne = true;
-    lastPlan = { ...plan, letter: held.char, from: body.translation() };
+    lastPlan = { ...plan, letter: held.char, decoy: !!held.decoy, from: body.translation() };
     held = null;
   }
 
-  function unstick(letter) {
-    if (joints[letter.id]) world.removeImpulseJoint(joints[letter.id], true);
-    joints[letter.id] = null;
-    letter.stuckTo = null;
+  function unstick(card) {
+    if (joints[card.id]) world.removeImpulseJoint(joints[card.id], true);
+    joints[card.id] = null;
+    card.stuckTo = null;
   }
 
   function placeInFan(letter) {
@@ -187,19 +210,21 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   }
 
   // Dev only for now (M4's reset will stage this): every letter back in the
-  // hand, no words locked, no finale.
+  // hand, no decoys, no words locked, no finale, play clock stopped.
   function returnAllToFan() {
     if (held) return;
     letters.forEach(placeInFan);
+    [...decoys].forEach(removeDecoy);
     lockedWords.length = 0;
     finale = null;
+    playStart = null;
   }
 
-  // Test and dev helper only (never used in play): puts a letter at a pose as a
+  // Test and dev helper only (never used in play): puts a card at a pose as a
   // free body at rest, to set up scenarios.
-  function debugPlace(letter, position, rotation = { x: 0, y: 0, z: 0, w: 1 }) {
-    unstick(letter);
-    const body = bodies[letter.id];
+  function debugPlace(card, position, rotation = IDENTITY) {
+    unstick(card);
+    const body = bodies[card.id];
     body.setBodyType(rapier.RigidBodyType.Dynamic, true);
     body.setGravityScale(1, true);
     setGroups(body, IN_PLAY);
@@ -207,8 +232,8 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     body.setRotation(rotation, true);
     body.setLinvel(ZERO, true);
     body.setAngvel(ZERO, true);
-    letter.status = STATUS.onTable;
-    letter.airborne = false;
+    card.status = STATUS.onTable;
+    card.airborne = false;
   }
 
   let impactSeq = 0;
@@ -217,11 +242,42 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     if (impacts.length > IMPACT_HISTORY) impacts.shift();
   }
 
-  // NON-PHYSICAL (4a), Stick: the letter is pressed flat into the wall face and
+  // NON-PHYSICAL (4e): the wall pops a decoy out of its face; it then falls
+  // under ordinary physics.
+  function shedDecoy(spec) {
+    const id = freeDecoyIds.shift();
+    const decoy = createDecoyState(id, spec.char);
+    forms[id] = formOf(spec.char);
+    const z = WALL.z + CARD.thickness;
+    const body = createCardBody(decoy, rapier.RigidBodyDesc.dynamic().setTranslation(spec.x, spec.y, z));
+    setGroups(body, IN_PLAY);
+    body.setLinvel({ x: 0, y: DECOYS.popLift, z: DECOYS.popSpeed }, true);
+    body.setAngvel({ x: 0, y: 0, z: spec.spin }, true);
+    decoys.push(decoy);
+    cardById.set(id, decoy);
+    recordImpact('shed', { x: spec.x, y: spec.y });
+    return decoy;
+  }
+
+  // NON-PHYSICAL (4e): a melted or eroded decoy leaves the world.
+  function removeDecoy(decoy) {
+    if (held === decoy) held = null;
+    unstick(decoy);
+    for (const handle of colliderHandles[decoy.id]) cardOfCollider.delete(handle);
+    world.removeRigidBody(bodies[decoy.id]);
+    bodies[decoy.id] = null;
+    forms[decoy.id] = null;
+    decoys.splice(decoys.indexOf(decoy), 1);
+    cardById.delete(decoy.id);
+    freeDecoyIds.push(decoy.id);
+    freeDecoyIds.sort((a, b) => a - b);
+  }
+
+  // NON-PHYSICAL (4a), Stick: the card is pressed flat into the wall face and
   // joined to the brick it hit by a fixed joint. If the brick later falls, the
-  // letter falls with it.
-  function embed(letter, brickIndex) {
-    const body = bodies[letter.id];
+  // card falls with it.
+  function embed(card, brickIndex) {
+    const body = bodies[card.id];
     const pose = embedPose(body.translation(), body.rotation(), WALL.z, CARD.thickness, EFFECTS.stick.bite);
     body.setTranslation(pose.position, true);
     body.setRotation(pose.rotation, true);
@@ -230,25 +286,20 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     const brick = brickBodies[brickIndex];
     const b = brick.translation();
     const anchor = { x: pose.position.x - b.x, y: pose.position.y - b.y, z: pose.position.z - b.z };
-    const joint = world.createImpulseJoint(
-      rapier.JointData.fixed(anchor, pose.rotation, ZERO, { x: 0, y: 0, z: 0, w: 1 }),
-      brick,
-      body,
-      true,
-    );
+    const joint = world.createImpulseJoint(rapier.JointData.fixed(anchor, pose.rotation, ZERO, IDENTITY), brick, body, true);
     joint.setContactsEnabled(false);
-    joints[letter.id] = joint;
-    letter.status = STATUS.stuck;
-    letter.stuckTo = brickIndex;
-    letter.airborne = false;
+    joints[card.id] = joint;
+    card.status = STATUS.stuck;
+    card.stuckTo = brickIndex;
+    card.airborne = false;
   }
 
-  // NON-PHYSICAL (4a), Ripple: kicks nearby free letters and stresses nearby bricks.
-  function ripple(letter, other) {
-    const impact = bodies[letter.id].translation();
-    const others = letters
-      .filter((l) => l !== letter && (l.status === STATUS.flying || l.status === STATUS.onTable))
-      .map((l) => ({ id: l.id, position: bodies[l.id].translation() }));
+  // NON-PHYSICAL (4a), Ripple: kicks nearby free cards and stresses nearby bricks.
+  function ripple(card, other) {
+    const impact = bodies[card.id].translation();
+    const others = cards()
+      .filter((c) => c !== card && (c.status === STATUS.flying || c.status === STATUS.onTable))
+      .map((c) => ({ id: c.id, position: bodies[c.id].translation() }));
     for (const kick of rippleKicks(impact, others, EFFECTS.ripple)) {
       const body = bodies[kick.id];
       const m = body.mass();
@@ -257,45 +308,45 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     if (other.type === 'brick' && EFFECTS.ripple.wallShake) {
       for (const s of rippleShake(impact, bricks, EFFECTS.ripple)) brickStress[s.index] += s.stress;
     }
-    lastRipple[letter.id] = time;
+    lastRipple[card.id] = time;
   }
 
-  // The first contact a flying letter makes in a step decides its effect.
-  function onContact(letter, other) {
-    if (letter.status !== STATUS.flying) return;
-    letter.airborne = false;
-    const body = bodies[letter.id];
-    const v = preVelocity[letter.id];
+  // The first contact a flying card makes in a step decides its effect.
+  function onContact(card, other) {
+    if (card.status !== STATUS.flying) return;
+    card.airborne = false;
+    const body = bodies[card.id];
+    const v = preVelocity[card.id];
     const speed = Math.hypot(v.x, v.y, v.z);
     let kind = 'bounce';
 
-    if (letter.family === FAMILY.stick && other.type === 'brick') {
+    if (card.family === FAMILY.stick && other.type === 'brick') {
       const check = stickCheck(v, body.rotation(), EFFECTS.stick);
       // Lockout mitigation (a): a letter being pulled by a correct neighbour
       // does not embed; the pull wins.
-      const pulled = resolution.letters[letter.id].pulled;
-      lastContact = { letter: letter.char, ...check, pulled };
+      const pulled = !card.decoy && resolution.letters[card.id].pulled;
+      lastContact = { letter: card.char, decoy: !!card.decoy, ...check, pulled };
       if (check.stick && !pulled) {
-        embed(letter, other.index);
+        embed(card, other.index);
         kind = 'stick';
       }
     } else if (
-      letter.family === FAMILY.ripple &&
+      card.family === FAMILY.ripple &&
       speed >= EFFECTS.ripple.minSpeed &&
-      time - lastRipple[letter.id] >= EFFECTS.ripple.cooldown
+      time - lastRipple[card.id] >= EFFECTS.ripple.cooldown
     ) {
-      ripple(letter, other);
+      ripple(card, other);
       kind = 'ripple';
-      lastContact = { letter: letter.char, speed, ripple: true };
+      lastContact = { letter: card.char, decoy: !!card.decoy, speed, ripple: true };
     } else {
-      lastContact = { letter: letter.char, speed };
+      lastContact = { letter: card.char, decoy: !!card.decoy, speed };
     }
     if (other.type === 'brick') recordImpact(kind, body.translation());
   }
 
   function classify(handle) {
     if (brickOfCollider.has(handle)) return { type: 'brick', index: brickOfCollider.get(handle) };
-    if (letterOfCollider.has(handle)) return { type: 'letter', id: letterOfCollider.get(handle) };
+    if (cardOfCollider.has(handle)) return { type: 'card', id: cardOfCollider.get(handle) };
     return { type: 'room' };
   }
 
@@ -352,7 +403,7 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
       body.setLinvel(ZERO, true);
       body.setAngvel(ZERO, true);
       body.setTranslation(word.slots[i], true);
-      body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
+      body.setRotation(IDENTITY, true);
       letter.status = STATUS.locked;
       letter.lockedWord = text;
       letter.airborne = false;
@@ -362,10 +413,11 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   }
 
   function startFinale() {
+    if (held?.decoy) release({ kind: 'drop' });
     const to = [];
     for (const { text } of WORDS) {
       resolution.words[text].members.forEach((id, i) => {
-        to[id] = { position: finaleTargets[text][i], rotation: { x: 0, y: 0, z: 0, w: 1 } };
+        to[id] = { position: finaleTargets[text][i], rotation: IDENTITY };
       });
     }
     finale = {
@@ -373,6 +425,31 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
       from: letters.map((l) => ({ position: bodies[l.id].translation(), rotation: bodies[l.id].rotation() })),
       to,
     };
+  }
+
+  // Decoys: shed when due, then their tell, ageing, melting and removal.
+  function updateDecoys(dt) {
+    if (playStart !== null && !finale) {
+      const spec = shedder.due(time - playStart, decoys.length < Math.min(DECOYS.count, MAX_DECOYS));
+      if (spec) shedDecoy(spec);
+    }
+    const letterSnaps = decoys.length ? snapshots() : null;
+    for (const decoy of [...decoys]) {
+      const body = bodies[decoy.id];
+      if (decoy.status !== STATUS.held) decoy.age += dt;
+      if (decoy.status === STATUS.stuck && decoy.meltAge === null) decoy.meltAge = 0;
+      if (decoy.meltAge !== null) decoy.meltAge += dt;
+      const warmth = impostorWarmth(letterSnapshot(decoy, body.translation(), body.rotation()), letterSnaps, {
+        params: WORD_RULES,
+        layout,
+      });
+      decoy.tell = decoyTell({ held: decoy.status === STATUS.held, impostorWarmth: warmth }, DECOYS);
+      decoy.erosion = decoyErosion(decoy, DECOYS);
+      if (decoy.erosion >= 1 && decoy.status !== STATUS.held) {
+        if (decoy.meltAge !== null) recordImpact('melt', body.translation());
+        removeDecoy(decoy);
+      }
+    }
   }
 
   function beforeStep(dt) {
@@ -383,53 +460,52 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
         bodies[letter.id].setNextKinematicTranslation(pose.position);
         bodies[letter.id].setNextKinematicRotation(pose.rotation);
       }
-      return;
-    }
-    resolution = resolveWords(snapshots(), { params: WORD_RULES, layout, previousLeaders: leaders });
-    for (const [text, word] of Object.entries(resolution.words)) leaders[text] = word.leader;
-
-    for (const letter of letters) {
-      const body = bodies[letter.id];
-      const info = resolution.letters[letter.id];
-      if (letter.status === STATUS.flying || letter.status === STATUS.onTable) {
+    } else {
+      resolution = resolveWords(snapshots(), { params: WORD_RULES, layout, previousLeaders: leaders });
+      for (const [text, word] of Object.entries(resolution.words)) leaders[text] = word.leader;
+      for (const letter of letters) {
+        if (letter.status !== STATUS.flying && letter.status !== STATUS.onTable) continue;
+        const info = resolution.letters[letter.id];
         if (info.pulled) {
           letter.airborne = false; // the pull takes over from the Curve
-          applyPull(body, info.target, dt);
+          applyPull(bodies[letter.id], info.target, dt);
         } else if (info.warmth > 0) {
-          applyWarm(letter, body, info.warmth, dt);
+          applyWarm(letter, bodies[letter.id], info.warmth, dt);
         }
       }
-      if (letter.status === STATUS.inFan) {
-        const pose = fan[letter.id];
-        const wave = Math.sin((2 * Math.PI * time) / FAN.breathePeriod + phases[letter.id]);
+    }
+    updateDecoys(dt);
+
+    for (const card of cards()) {
+      const body = bodies[card.id];
+      if (card.status === STATUS.inFan) {
+        if (finale) continue;
+        const pose = fan[card.id];
+        const wave = Math.sin((2 * Math.PI * time) / FAN.breathePeriod + phases[card.id]);
         body.setNextKinematicTranslation({ x: pose.x, y: pose.y + FAN.breatheAmplitude * wave, z: pose.z });
         body.setNextKinematicRotation(quatZ(pose.angle + FAN.breatheRotation * wave));
         continue;
       }
-      if (letter.status === STATUS.held) {
+      if (card.status === STATUS.held) {
         steerArrive(body, holdTarget, HOLD, dt);
         steerUpright(body, HOLD, dt);
         continue;
       }
-      if (letter.status === STATUS.flying || letter.status === STATUS.onTable) {
+      if (card.status === STATUS.flying || card.status === STATUS.onTable) {
         applyAirDrag(body, AIR.coefficient, dt);
       }
-      if (letter.airborne && letter.family === FAMILY.curve) {
+      if (card.airborne && card.family === FAMILY.curve) {
         const a = curveAcceleration(body.linvel(), body.angvel(), body.rotation(), EFFECTS.curve.gain);
         const k = body.mass() * dt;
         body.applyImpulse({ x: a.x * k, y: a.y * k, z: a.z * k }, true);
       }
       const v = body.linvel();
-      preVelocity[letter.id] = { x: v.x, y: v.y, z: v.z };
+      preVelocity[card.id] = { x: v.x, y: v.y, z: v.z };
     }
   }
 
   function afterStep(dt) {
-    if (finale) {
-      physics.eventQueue.drainCollisionEvents(() => {});
-      return;
-    }
-    // Contacts that started this step; one per letter, the first one seen.
+    // Contacts that started this step; one per card, the first one seen.
     const contacts = new Map();
     physics.eventQueue.drainCollisionEvents((h1, h2, started) => {
       if (!started) return;
@@ -437,32 +513,36 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
         [h1, h2],
         [h2, h1],
       ]) {
-        const id = letterOfCollider.get(mine);
+        const id = cardOfCollider.get(mine);
         if (id !== undefined && !contacts.has(id)) contacts.set(id, classify(theirs));
       }
     });
-    for (const [id, other] of contacts) onContact(letters[id], other);
+    for (const [id, other] of contacts) {
+      const card = cardById.get(id);
+      if (card) onContact(card, other);
+    }
 
-    for (const letter of letters) {
-      if (letter.status !== STATUS.flying && letter.status !== STATUS.onTable) continue;
-      const body = bodies[letter.id];
+    for (const card of cards()) {
+      if (card.status !== STATUS.flying && card.status !== STATUS.onTable) continue;
+      const body = bodies[card.id];
       const v = body.linvel();
       const w = body.angvel();
       const speed = Math.hypot(v.x, v.y, v.z);
       const spin = Math.hypot(w.x, w.y, w.z);
-      if (letter.status === STATUS.flying) {
+      if (card.status === STATUS.flying) {
         const resting = body.isSleeping() || (speed < STATUS_RULES.restSpeed && spin < STATUS_RULES.restSpin);
-        letter.restTime = resting ? letter.restTime + dt : 0;
-        if (letter.restTime >= STATUS_RULES.restTime) {
-          letter.status = STATUS.onTable;
-          letter.airborne = false;
+        card.restTime = resting ? card.restTime + dt : 0;
+        if (card.restTime >= STATUS_RULES.restTime) {
+          card.status = STATUS.onTable;
+          card.airborne = false;
         }
       } else if (speed > STATUS_RULES.wakeSpeed) {
-        letter.status = STATUS.flying;
-        letter.restTime = 0;
+        card.status = STATUS.flying;
+        card.restTime = 0;
       }
     }
 
+    if (finale) return;
     for (const [text, word] of Object.entries(resolution.words)) {
       if (word.state === 'ready' && word.members.every((id) => letters[id].status !== STATUS.held)) lockWord(text, word);
     }
@@ -471,6 +551,9 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
   return {
     physics,
     letters,
+    decoys,
+    cards,
+    card: (id) => cardById.get(id),
     bodies,
     forms,
     fan,
@@ -480,12 +563,14 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     impacts,
     wall,
     room,
+    shedder,
     hold,
     setHoldTarget,
     release,
     placeInFan,
     returnAllToFan,
     debugPlace,
+    shedDecoy,
     beforeStep,
     afterStep,
     get held() {
@@ -506,6 +591,9 @@ export function createGame(physics, { seed = WORLD.seed } = {}) {
     // 0 before the finale, rising to 1 as the line forms.
     get finaleProgress() {
       return finale ? Math.min(1, (time - finale.start) / FINALE.duration) : 0;
+    },
+    get playTime() {
+      return playStart === null ? 0 : time - playStart;
     },
     layout,
     get time() {

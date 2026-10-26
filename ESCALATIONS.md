@@ -30,3 +30,8 @@ Items that could change the concept or the grade (brief, section 3). Status: ope
 - Ripple restitution: O and Y may bounce out of a pull too fast to be captured. (M3: in scripted runs a hard O and Y were captured beside their anchors.)
 - Discoverability: whether a fresh player brings a correct pair close enough to see a warm tremble within about two minutes.
 - Throw spin (M3): sideways flick speed sets spin, so aiming far to the side by flicking diagonally adds spin, which bends R and P. Watch whether players learn to carry first and flick straight; if not, consider spin from flick curvature (DECISIONS, M3).
+
+## E7. Decoy letters
+- **Raised:** 2026-10-25 by Kiwi, to make the word harder to figure out.
+- **Resolution:** Kiwi chose wall-shed decoys with a graded tell, as inert noise. Amends the brief's "do not duplicate letters" (the nine stay exactly nine and always solvable) and adds rule 4 item (e). Recorded in CLAUDE.md; details in DECISIONS.md.
+- **Status:** resolved.

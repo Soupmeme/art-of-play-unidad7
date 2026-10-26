@@ -5,47 +5,89 @@
 import * as THREE from 'three';
 import { createGlyphAtlas, createBannerMask } from './typeTextures.js';
 import { createAsciiMaterial } from './asciiMaterial.js';
+import { createDecoyMaterials, decoyBaseMaterials } from './decoyMaterial.js';
 import { WALL, ROOM, ASCII, PALETTE, WORD_RULES } from '../config.js';
-
-export function createLetterMeshes(scene, game) {
-  // Extrude groups: 0 = front and back faces, 1 = the cut edge. Each letter
-  // has its own materials so a locked word can glow on its own.
-  return game.letters.map((letter, i) => {
-    const face = new THREE.MeshStandardMaterial({ color: PALETTE.ivory, roughness: 0.55, emissive: PALETTE.glow, emissiveIntensity: 0 });
-    const edge = new THREE.MeshStandardMaterial({ color: PALETTE.oxblood, roughness: 0.7, emissive: PALETTE.glow, emissiveIntensity: 0 });
-    const mesh = new THREE.Mesh(game.forms[i].geometry, [face, edge]);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData.letterId = letter.id;
-    scene.add(mesh);
-    return mesh;
-  });
-}
 
 const LOCK_GLOW = 0.28;
 const FINALE_GLOW = 0.6;
+const TELL_EASE = 6; // per second: how fast a decoy's shown tell follows the game's value
 
-// Copies body poses to meshes. Two render-only touches:
-//   - locked letters glow (emissive, the one accent colour), more in the finale;
-//   - NON-PHYSICAL (4b): a stuck letter that is warm trembles a few
-//     millimetres on screen; its body, welded to the wall, does not move.
-export function syncLetterMeshes(meshes, game, seconds) {
-  meshes.forEach((mesh, i) => {
-    const body = game.bodies[i];
-    const letter = game.letters[i];
-    mesh.position.copy(body.translation());
-    mesh.quaternion.copy(body.rotation());
+// Meshes for every card: the nine letters, plus decoys as the wall sheds them
+// and removes them. `meshes` is a live array (the input picks from it).
+// Extrude groups: 0 = front and back faces, 1 = the cut edge. Each card has
+// its own materials so a locked word can glow, or a decoy glitch, on its own.
+export function createCardMeshes(scene, game) {
+  const meshes = [];
+  const decoyMeshes = new Map(); // decoy id -> { mesh, uniforms, card }
 
-    const warmth = game.resolution.letters[i].warmth;
-    if (letter.status === 'stuck' && warmth > 0) {
-      const a = WORD_RULES.stuckTremble * warmth;
-      mesh.position.x += a * Math.sin(seconds * 61 + i * 1.7);
-      mesh.position.y += a * Math.sin(seconds * 47 + i * 2.3);
+  function addMesh(card, materials) {
+    const mesh = new THREE.Mesh(game.forms[card.id].geometry, materials);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData.cardId = card.id;
+    scene.add(mesh);
+    meshes.push(mesh);
+    return mesh;
+  }
+
+  for (const letter of game.letters) {
+    addMesh(letter, [
+      new THREE.MeshStandardMaterial({ color: PALETTE.ivory, roughness: 0.55, emissive: PALETTE.glow, emissiveIntensity: 0 }),
+      new THREE.MeshStandardMaterial({ color: PALETTE.oxblood, roughness: 0.7, emissive: PALETTE.glow, emissiveIntensity: 0 }),
+    ]);
+  }
+
+  function syncDecoys(seconds, dt) {
+    for (const decoy of game.decoys) {
+      if (decoyMeshes.get(decoy.id)?.card === decoy) continue;
+      const { materials, uniforms } = createDecoyMaterials({ ...decoyBaseMaterials(PALETTE), seed: decoy.id * 17.0 + seconds });
+      decoyMeshes.set(decoy.id, { mesh: addMesh(decoy, materials), uniforms, card: decoy });
     }
+    for (const [id, entry] of decoyMeshes) {
+      if (game.decoys.includes(entry.card)) {
+        const u = entry.uniforms;
+        u.uTime.value = seconds;
+        u.uTell.value += (entry.card.tell - u.uTell.value) * Math.min(1, TELL_EASE * dt);
+        u.uErosion.value = entry.card.erosion;
+        continue;
+      }
+      scene.remove(entry.mesh);
+      entry.mesh.material.forEach((m) => m.dispose());
+      meshes.splice(meshes.indexOf(entry.mesh), 1);
+      decoyMeshes.delete(id);
+    }
+  }
 
-    const glow = letter.status === 'locked' ? LOCK_GLOW + (FINALE_GLOW - LOCK_GLOW) * game.finaleProgress : 0;
-    for (const m of mesh.material) m.emissiveIntensity = glow;
-  });
+  let last = 0;
+  // Copies body poses to meshes. Render-only touches:
+  //   - locked letters glow (emissive, the one accent colour), more in the finale;
+  //   - NON-PHYSICAL (4b): a stuck letter that is warm trembles a few
+  //     millimetres on screen; its body, welded to the wall, does not move;
+  //   - decoys show their graded tell.
+  function sync(seconds) {
+    const dt = last ? Math.min(0.1, seconds - last) : 0;
+    last = seconds;
+    syncDecoys(seconds, dt);
+    for (const mesh of meshes) {
+      const id = mesh.userData.cardId;
+      const card = game.card(id);
+      const body = game.bodies[id];
+      mesh.position.copy(body.translation());
+      mesh.quaternion.copy(body.rotation());
+      if (card.decoy) continue;
+
+      const warmth = game.resolution.letters[id].warmth;
+      if (card.status === 'stuck' && warmth > 0) {
+        const a = WORD_RULES.stuckTremble * warmth;
+        mesh.position.x += a * Math.sin(seconds * 61 + id * 1.7);
+        mesh.position.y += a * Math.sin(seconds * 47 + id * 2.3);
+      }
+      const glow = card.status === 'locked' ? LOCK_GLOW + (FINALE_GLOW - LOCK_GLOW) * game.finaleProgress : 0;
+      for (const m of mesh.material) m.emissiveIntensity = glow;
+    }
+  }
+
+  return { meshes, sync };
 }
 
 // The wall slab and the two side lanes, all carrying the type animation.
@@ -124,7 +166,8 @@ export function createTypeSurfaces(scene, game) {
 
   // New wall impacts from the game become pulses in the wall's type, stamped
   // with the render clock. The four most recent are kept.
-  const PULSE_KIND = { stick: 1, ripple: 2, bounce: 3 };
+  // A decoy shed from the wall, or melting back into it, flashes like a bite.
+  const PULSE_KIND = { stick: 1, ripple: 2, bounce: 3, shed: 1, melt: 1 };
   let seen = 0;
   let nextPulse = 0;
 

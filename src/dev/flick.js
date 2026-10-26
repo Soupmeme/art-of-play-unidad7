@@ -17,7 +17,7 @@ export function createFlick({ canvas, camera, game }) {
     const body = game.bodies[id];
     const boxes = game.forms[id].boxes;
     let point;
-    if (game.letters[id].status === 'inFan') {
+    if (game.card(id).status === 'inFan') {
       const box = boxes.reduce((a, b) => (b.x - b.halfWidth < a.x - a.halfWidth ? b : a));
       point = { x: box.x - box.halfWidth + Math.min(0.08, box.halfWidth), y: box.y };
     } else {
@@ -36,7 +36,7 @@ export function createFlick({ canvas, camera, game }) {
     const event = (x, y) => ({ clientX: x, clientY: y, pointerId: 77, button: 0, bubbles: true, pointerType: 'mouse' });
 
     canvas.dispatchEvent(new PointerEvent('pointerdown', event(sx, sy)));
-    const grabbed = game.letters[id].status === 'held';
+    const grabbed = game.card(id).status === 'held';
     await wait(300);
     let fx = sx;
     let fy = sy;
@@ -67,7 +67,7 @@ export function createFlick({ canvas, camera, game }) {
     }
     const q = game.bodies[id].translation();
     return {
-      letter: game.letters[id].char,
+      letter: game.card(id).char,
       grabbed,
       kind: plan?.kind,
       power: plan && +plan.power.toFixed(2),
@@ -75,7 +75,7 @@ export function createFlick({ canvas, camera, game }) {
       spin: plan?.spin && +plan.spin.toFixed(1),
       wallHit,
       rest: { x: +q.x.toFixed(2), y: +q.y.toFixed(2), z: +q.z.toFixed(2) },
-      status: game.letters[id].status,
+      status: game.card(id).status,
     };
   };
 }

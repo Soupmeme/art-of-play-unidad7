@@ -2,7 +2,7 @@
 // config objects the game reads every step, so changes apply live.
 
 import GUI from 'three/addons/libs/lil-gui.module.min.js';
-import { THROW, HOLD, AIR, CARD, EFFECTS, WORD_RULES } from '../config.js';
+import { THROW, HOLD, AIR, CARD, EFFECTS, WORD_RULES, DECOYS } from '../config.js';
 import { FAMILY } from '../letters/families.js';
 
 export function createDevPanel({ game, colliderDebug }) {
@@ -66,6 +66,23 @@ export function createDevPanel({ game, colliderDebug }) {
   w.add(WORD_RULES, 'trembleKick', 0, 10, 0.1);
   w.add(WORD_RULES, 'leanAccel', 0, 6, 0.1);
 
+  const d = gui.addFolder('Decoys').close();
+  d.add(DECOYS, 'count', 0, 3, 1).name('at most (0 = off)');
+  d.add(DECOYS, 'firstAfter', 0, 120, 1).name('first after s');
+  d.add(DECOYS, 'intervalMin', 2, 60, 1);
+  d.add(DECOYS, 'intervalMax', 2, 90, 1);
+  d.add(DECOYS, 'lifetime', 5, 120, 1);
+  d.add(DECOYS, 'tellBase', 0, 1, 0.01).name('tell at rest');
+  d.add(DECOYS, 'tellHeld', 0, 1, 0.01).name('tell held');
+  let nextChar = 0; // cycles through the letters; no randomness outside the seeded rng
+  const shedNow = {
+    'shed a decoy now': () => {
+      if (game.decoys.length >= 3) return;
+      game.shedDecoy({ char: DECOYS.chars[nextChar++ % DECOYS.chars.length], x: 0, y: 2.5, spin: 0 });
+    },
+  };
+  d.add(shedNow, 'shed a decoy now');
+
   const actions = {
     'return letters to fan': () => game.returnAllToFan(),
     'show colliders': false,
@@ -95,6 +112,10 @@ export function describeState(game, rapierVersion, physics) {
         return `${l.char}: w ${info.warmth.toFixed(2)}${info.pulled ? ' PULL' : ''}`;
       })
       .join('  '),
+  );
+  lines.push(
+    `play ${game.playTime.toFixed(0)} s  next shed ${game.shedder.next.toFixed(0)} s  decoys: ` +
+      (game.decoys.map((x) => `${x.char}:${x.status} tell ${x.tell.toFixed(2)} erode ${x.erosion.toFixed(2)}`).join('  ') || 'none'),
   );
   const c = game.lastContact;
   if (c) {

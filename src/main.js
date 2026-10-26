@@ -3,7 +3,7 @@
 import { initRapier, createPhysics, createStepper } from './physics/world.js';
 import { createGame } from './game.js';
 import { createRenderer } from './render/renderer.js';
-import { createLetterMeshes, syncLetterMeshes, createTypeSurfaces, createColliderDebug } from './render/meshes.js';
+import { createCardMeshes, createTypeSurfaces, createColliderDebug } from './render/meshes.js';
 import { createHoldThrow } from './input/holdThrow.js';
 import { isDevMode, createDevTools } from './dev/devTools.js';
 
@@ -15,10 +15,10 @@ async function main() {
 
   const canvas = document.getElementById('stage');
   const view = createRenderer(canvas);
-  const letterMeshes = createLetterMeshes(view.scene, game);
+  const cardMeshes = createCardMeshes(view.scene, game);
   const typeSurfaces = createTypeSurfaces(view.scene, game);
   const colliderDebug = createColliderDebug(view.scene);
-  createHoldThrow({ canvas, camera: view.camera, game, meshes: letterMeshes });
+  createHoldThrow({ canvas, camera: view.camera, game, meshes: cardMeshes.meshes });
 
   let dev = null;
   if (isDevMode()) {
@@ -38,7 +38,7 @@ async function main() {
     const frameSeconds = Math.min((now - last) / 1000, 0.25);
     last = now;
     advance(frameSeconds, hooks);
-    syncLetterMeshes(letterMeshes, game, now / 1000);
+    cardMeshes.sync(now / 1000);
     typeSurfaces.update(now / 1000);
     colliderDebug.update(physics.world);
     view.render();

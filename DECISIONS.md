@@ -231,3 +231,20 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 
 ### Playtest readiness
 - `PLAYTESTS.md` holds the session template (brief section 8). The optional local event logger is not built yet.
+
+## 2026-10-25, after M3: wider hold, decoys (Kiwi's direction)
+
+### Hold area widened
+- **Observation (Kiwi):** flicking felt like hitting a wall. Cause: the held letter's height was clamped at 3.2 units, which on the hold plane is about a quarter of the way down the screen; during an upward flick the letter stopped there while the pointer kept going.
+- **Decision:** ceiling raised to 4.8 (above the top of the screen at the hold plane), side inset 0.6 to 0.35, front side boundary 3.9 to 4.3 (just past the screen edge at the front), and the hold steering made quicker (max speed 22 to 32, max acceleration 600 to 900) so the letter keeps up with a flick.
+- **Checked in the browser:** dragging a held letter to 6% from the top of the screen, the letter followed to 6%. Throw accuracy unchanged (`docs/reports/throws.md`).
+
+### Decoys (amends the brief; Kiwi chose wall-shed, graded tell, inert noise)
+- **Where from:** the wall sheds them. A seeded schedule (`src/letters/decoys.js`) on the play clock (which starts at the first hold): first after 18 s, then every 12 to 22 s, at most 3 at once. Each pops out of the wall face (0.03 in front of it) with 2.4 units/s toward the camera and 1.5 up, then falls to the table under ordinary physics. The wall's type flashes where it leaves. Letters drawn only from ARTOFPLY.
+- **Rule:** a decoy obeys its letter's family (a decoy R curves, a decoy T can stick, a decoy O ripples), so "the rule is about the letter" still holds. The word function never sees decoys: they never warm, pull or lock, and the phrase stays exactly nine letters.
+- **Inert noise, never a blocker:** a decoy that sticks in the wall melts back into its type within 1.2 s, so it never squats on a slot. A loose decoy erodes over the last 6 s of a 35 s life and is removed. The clock pauses while it is held.
+- **Graded tell (`src/render/decoyMaterial.js`):** the letter is cut into thin horizontal bands that jump sideways now and then (like the wall's glitching rows), its ivory greys, and at the end it drops out in blocks. Strength: 0.15 at rest (faint), 0.55 while held, rising to 1 as it nears the slot it pretends to fill. "Near" is impostor warmth: the warmth its real neighbours would give it if it were real, by the same formula as real pairs (`impostorWarmth` in `src/words/resolve.js`). So the closer a decoy gets to the answer, the more the lie breaks up. The shown tell eases toward the game value over about a sixth of a second.
+- **Engineering:** letters and decoys are now "cards" sharing one code path (hold, throw, effects, contacts, rendering, picking). Decoy ids 9 to 11 are reused. Dev panel: "Decoys" folder (count, timing, tell levels, "shed a decoy now").
+- **Tests (`test/decoys.test.js`):** schedule determinism and spacing; tell grading; impostor warmth (full at the right slot, zero in wrong order or far); erosion and melting; in real Rapier: a shed decoy lands on the table, count 0 never sheds, a decoy sitting exactly in O's slot beside a stuck F never pulls or locks while the real O still completes OF, a stuck decoy melts away, a loose decoy erodes away.
+- **Checked in the browser:** a decoy O placed in OF's open slot shows the full tell (sliced bands, greyed); a decoy R lying far from any A shows only the faint one. A GLSL compile error (`active` is a reserved word) was found there and fixed.
+- **Open for playtests:** whether the at-rest tell is too faint to notice at all, or the near-slot tell gives the game away. Compare sessions with `DECOYS.count` 0 and 3.

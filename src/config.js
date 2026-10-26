@@ -40,7 +40,7 @@ export const ROOM = {
   backZ: -14,
   height: 8,
   // Side boundary: from (±nearX, frontZ) to (±farX, wall.z), then straight back.
-  nearX: 3.9, // wide enough that the fan's outer letters start inside the room
+  nearX: 4.3, // a little past the screen edge at the front, so the hand can reach the sides
   farX: 6.4,
   laneHeight: 0.22, // the low side lanes drawn along the side glass
   laneWidth: 0.12,
@@ -95,11 +95,11 @@ export const FAN = {
 export const HOLD = {
   planeZ: -4.5, // held letters ride on this plane, between the glass and the fan
   minY: 0.6,
-  maxY: 3.2,
-  sideInset: 0.6,
-  maxSpeed: 22, // "arrive" steering, units/s
+  maxY: 4.8, // above the top of the screen at the hold plane, so a flick never meets a ceiling
+  sideInset: 0.35,
+  maxSpeed: 32, // "arrive" steering, units/s: fast enough to keep up with a flick
   slowRadius: 0.5,
-  maxAccel: 600, // units/s^2
+  maxAccel: 900, // units/s^2
   uprightGain: 14, // rad/s per rad of tilt
   uprightBlend: 25, // 1/s, how fast angular velocity follows the target
 };
@@ -166,6 +166,27 @@ export const WORD_RULES = {
   trembleFrequency: 9, // Hz
   leanAccel: 1.2, // units/s^2 toward the partner at full warmth
   stuckTremble: 0.006, // units: render-only tremble of a stuck letter at full warmth
+};
+
+// Decoys (Kiwi's amendment, 2026-10-25): extra letter-cards shed by the wall.
+// They obey their letter's family but never warm, pull or lock, and never
+// stay: a stuck decoy melts back into the wall, a loose one erodes away.
+// NON-PHYSICAL (4e): shedding, melting and eroding.
+export const DECOYS = {
+  count: 3, // most decoys at once; 0 turns the mechanic off (for playtest comparison)
+  chars: 'ARTOFPLY',
+  firstAfter: 18, // seconds of play (from the first hold) before the first shed
+  intervalMin: 12, // seconds between sheds
+  intervalMax: 22,
+  lifetime: 35, // seconds a loose decoy lasts
+  erodeTime: 6, // the last seconds of its life, eroding visibly
+  meltTime: 1.2, // seconds for a stuck decoy to melt into the wall
+  popSpeed: 2.4, // units/s out of the wall face, toward the camera
+  popLift: 1.5, // units/s upward as it pops out
+  // The graded tell: how broken up a decoy looks (0 to 1).
+  tellBase: 0.15, // at rest: faint glitch lines
+  tellHeld: 0.55, // while held
+  // ... rising to 1 as it nears the slot it pretends to fill (impostor warmth).
 };
 
 export const FINALE = {

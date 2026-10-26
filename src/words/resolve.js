@@ -86,6 +86,34 @@ function assign(letters) {
   };
 }
 
+// Warmth by the same rule as a real pair: 0 at hintRadius, 1 at the typeset spacing.
+function pairWarmth(d, ordered, spacing, params) {
+  return ordered && d < params.hintRadius ? Math.min(1, Math.max(0, (params.hintRadius - d) / (params.hintRadius - spacing))) : 0;
+}
+
+// For a decoy (Kiwi's amendment): how warm it would be if it were real, from
+// the real letters that would be its neighbours. Used only for the decoy's
+// tell, which grows as it nears the slot it pretends to fill. It never pulls.
+export function impostorWarmth(decoy, letters, { params, layout, right = { x: 1, y: 0, z: 0 } }) {
+  let best = 0;
+  for (const text of WORD_TEXTS) {
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] !== decoy.char) continue;
+      for (const j of [i - 1, i + 1]) {
+        if (j < 0 || j >= text.length) continue;
+        const spacing = Math.hypot(layout[text][j].dx - layout[text][i].dx, layout[text][j].dy - layout[text][i].dy);
+        for (const n of letters) {
+          if (n.char !== text[j] || !IN_PLAY.has(n.status)) continue;
+          const rel = j > i ? sub(n.position, decoy.position) : sub(decoy.position, n.position);
+          const d = Math.hypot(rel.x, rel.y, rel.z);
+          best = Math.max(best, pairWarmth(d, dot(rel, right) > 0, spacing, params));
+        }
+      }
+    }
+  }
+  return best;
+}
+
 export function resolveWords(letters, { params, layout, right = { x: 1, y: 0, z: 0 }, forward = { x: 0, y: 0, z: -1 }, previousLeaders = {} }) {
   const members = assign(letters);
   const words = {};
@@ -115,7 +143,7 @@ export function resolveWords(letters, { params, layout, right = { x: 1, y: 0, z:
       const d = Math.hypot(rel.x, rel.y, rel.z);
       const ordered = dot(rel, right) > 0;
       const spacing = Math.hypot(typeset[i + 1].dx - typeset[i].dx, typeset[i + 1].dy - typeset[i].dy);
-      const warmth = ordered && d < params.hintRadius ? Math.min(1, Math.max(0, (params.hintRadius - d) / (params.hintRadius - spacing))) : 0;
+      const warmth = pairWarmth(d, ordered, spacing, params);
       const pulling = ordered && d < params.pullRadius && Math.abs(dot(rel, forward)) < params.depthTolerance;
       pairs.push({ a: a.id, b: b.id, slots: [i, i + 1], distance: d, ordered, warmth, pulling });
     }
