@@ -18,6 +18,18 @@ Presiona sobre una carta para sostenerla, muévela para llevarla y apuntar, y su
 
 Funciona en navegadores de escritorio recientes (Chrome, Edge, Firefox, Safari) con WebGL.
 
+## Autoevaluación
+
+Criterios copiados textualmente de la [Unidad 7 del curso](https://juanferfranco.github.io/simulacion-2026-20/units/unit7/) (Actividad 03): "Valora cada criterio de 0 a 25 puntos y susténtalo con evidencias". El puntaje y la sustentación los escribe Kiwi; la columna de evidencias indica dónde se puede verificar cada criterio en este repositorio.
+
+| Criterio | Puntaje | Sustentación | Evidencias |
+|---|---|---|---|
+| **1. Cumplimiento del encargo:** mi sistema utiliza las letras del nombre de una organización, permite jugar con ellas y funciona en tiempo real en la Web para el contexto definido. | ___ / 25 | | Las nueve letras de ART OF PLAY como piezas de juego (`src/letters/`); todo lo visible hecho con las letras de la frase (`CLAUDE.md`, `src/render/stage.js`, `src/render/asciiMaterial.js`); la pieza en línea como *hero* de página de inicio ([GitHub Pages](https://soupmeme.github.io/art-of-play-unidad7/), `index.html`); prueba de humo en navegador (`DECISIONS.md`, M7). |
+| **2. Comprensión y verificación:** puedo explicar y justificar el modelo, sus estados y sus reglas. Puedo predecir y verificar el efecto de modificar una regla o un parámetro. | ___ / 25 | | El modelo, qué es física y qué es magia, y la tabla de parámetros con predicciones (`EXPLAINER.md`); estados de las letras (`src/letters/letters.js`) y de las palabras (`src/words/resolve.js`); 137 pruebas (`test/`) y sus reportes (`docs/reports/`); panel de ajuste en vivo (`?dev`). |
+| **3. Interacción e identidad:** puedo justificar qué permiten descubrir las acciones y sus consecuencias sobre el atributo elegido, y contrastarlo con lo observado en las pruebas con otras personas. | ___ / 25 | | La regla oculta de las palabras (`src/words/resolve.js`), los señuelos (`src/letters/decoys.js`), el barajado del crupier (`src/staging/opening.js`) y la revelación final (`src/staging/finale.js`); pruebas de juego (`PLAYTESTS.md`). |
+| **4. Resolución tipográfica y experiencia de juego:** la composición, el ritmo, los momentos de lectura y las respuestas perceptibles permiten explorar el sistema y sostienen su intención. | ___ / 25 | | Cartas troqueladas en Cinzel (`src/letters/glyphs.js`); el momento de lectura del final y la marquesina (`src/render/lighting.js`); respuestas del telón a cada impacto, temblor antes de caer, señales de las palabras; capturas en la bitácora (`LOGBOOK.md`). |
+| **Total** | ___ / 100 | | |
+
 ## Ejecutar en local
 
 Requiere Node.js 22.12 o superior.
