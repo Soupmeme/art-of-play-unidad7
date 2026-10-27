@@ -34,7 +34,7 @@ export function createCardMeshes(scene, game) {
   }
 
   for (const letter of game.letters) {
-    const { face, edge } = createCardMaterials(letter.char);
+    const { face, edge } = createCardMaterials();
     addMesh(letter, [face, edge]);
   }
 
@@ -53,7 +53,7 @@ export function createCardMeshes(scene, game) {
       // Decoy ids are reused: a new decoy may take the id of one that just
       // left, so drop the old mesh before making the new one.
       if (existing) dropDecoyMesh(decoy.id);
-      const { materials, uniforms } = createDecoyMaterials({ ...createCardMaterials(decoy.char), seed: decoy.id * 17.0 + seconds });
+      const { materials, uniforms } = createDecoyMaterials({ ...createCardMaterials(), seed: decoy.id * 17.0 + seconds });
       decoyMeshes.set(decoy.id, { mesh: addMesh(decoy, materials), uniforms, card: decoy });
     }
     for (const [id, entry] of decoyMeshes) {

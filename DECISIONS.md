@@ -402,3 +402,17 @@ Format: date, decision, alternatives considered, why. Newest at the bottom. Valu
 - `LOGBOOK.md`: references (the founders' quotes left for Kiwi to source), screenshot slots, a dated timeline linked to commits, the test reports, playtest links, and the self-evaluation skeleton (four criteria, empty scores, evidence lists, reflections left to Kiwi). Headings in English with Spanish in parentheses.
 - `README.md`: rewritten (run, controls, URL switches, documents, code map, credits). `PLAYTESTS.md`: how to use the playtest log.
 - Removed an unused value (`FINALE.hold`).
+
+## 2026-10-27, Kiwi's review: plain cards, the hand above the floor, no credits page
+
+### Card ornament removed
+- **Observation (Kiwi):** the M5 face and back textures (micro-type ground, letter borders, card-back lattice) looked iffy; the plain cards looked better.
+- **Decision:** the cards are plain ivory stock with an oxblood cut edge again, as before M5. `src/render/cardTextures.js` and the card UVs are gone; `src/render/cardMaterial.js` now just makes the two plain materials (face and edge, both able to glow when their word locks). Decoys use the same plain cards with their tell on top.
+
+### The hand clipped into the floor
+- **Measured:** across six shuffled hands, the lowest point of the hand sat 2 to 8 cm below the floor: the arc tilts the outer cards of the front row, and their corners swing down.
+- **Decision:** `liftAboveFloor` (in `src/letters/fan.js`) finds each card's lowest point from its outline, turned by its lean in the fan, and lifts the whole hand just enough to clear the floor by 3 cm plus the breathing amplitude. Most hands rise by a few centimetres; the deal is unaffected (the deck sits well above the floor).
+- **Tests:** over 20 shuffled hands with decoys, every card clears the floor at rest, breathing included; during the deal, every card stays above the floor at every tenth of a second.
+
+### No credits below the fold
+- **Decision (Kiwi):** the credits colophon is removed; credits belong in the repository (README). The page is the hero alone again, full window, no scrolling, so the scroll pause is gone too. The required "Student concept, not affiliated with Art of Play" line stays in the hero's corner (rule 6).

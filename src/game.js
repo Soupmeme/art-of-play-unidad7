@@ -5,7 +5,7 @@
 import { STATUS, HOLDABLE, WORDS, createLetters, wordStarts } from './letters/letters.js';
 import { FAMILY } from './letters/families.js';
 import { letterForm, wordLayout } from './letters/glyphs.js';
-import { handLayout } from './letters/fan.js';
+import { handLayout, liftAboveFloor } from './letters/fan.js';
 import { stickCheck, embedPose, curveAcceleration, rippleKicks, rippleShake } from './letters/effects.js';
 import { createDecoyState, createShedder, decoyTell, decoyErosion } from './letters/decoys.js';
 import { resolveWords, letterSnapshot, impostorWarmth } from './words/resolve.js';
@@ -84,6 +84,9 @@ export function createGame(physics, { seed = WORLD.seed, round: roundOptions = {
       sag: FAN.sag,
       maxSpan: FAN.maxSpan,
     });
+    // The arc tilts the outer cards, and their corners would dip under the
+    // floor; the hand rises just enough to clear it, breathing included.
+    fan = liftAboveFloor(fan, order.map((id) => forms[id].outline), FAN.floorClearance + FAN.breatheAmplitude);
     slotOf.clear();
     order.forEach((id, slot) => slotOf.set(id, slot));
   }

@@ -7,9 +7,10 @@ html,
 body {
   margin: 0;
   background: var(--house);
+  overflow: hidden;
 }
 
-/* The hero fills the first screen; the page scrolls on to the colophon. */
+/* The hero is the whole page. */
 .hero {
   position: relative;
   width: 100%;
@@ -47,21 +48,6 @@ body {
   opacity: 0.45;
   pointer-events: none;
   user-select: none;
-}
-
-.colophon {
-  max-width: 36rem;
-  margin: 0 auto;
-  padding: 3.5rem 16px 4rem;
-  font: 14px/1.6 Georgia, 'Times New Roman', serif;
-  color: var(--ivory);
-  opacity: 0.7;
-}
-
-.colophon-title {
-  font-size: 13px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
 }
 
 .dev-info {

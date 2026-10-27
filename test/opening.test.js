@@ -109,3 +109,30 @@ describe('a real round (Rapier, default round rules)', () => {
     expect(s.game.opening).toBe(true);
   }, 30000);
 });
+
+describe('the hand never dips under the floor', () => {
+  const lowestOf = (g, id, pose) =>
+    pose.y + Math.min(...g.forms[id].outline.map((q) => q.x * Math.sin(pose.angle) + q.y * Math.cos(pose.angle)));
+
+  it('at rest, over 20 shuffled hands with decoys, every card clears the floor (breathing included)', async () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const s = await createSession({ seed, round: {} });
+      const g = s.game;
+      for (const id of g.handOrder) expect(lowestOf(g, id, g.fanPose(id)) - 0.012).toBeGreaterThan(0);
+    }
+  }, 60000);
+
+  it('during the deal, every card stays above the floor', async () => {
+    const s = await createSession({ round: {} });
+    const g = s.game;
+    for (let k = 0; k < 40; k++) {
+      s.wait(0.1);
+      for (const id of g.handOrder) {
+        const body = g.bodies[id];
+        const q = body.rotation();
+        const angle = 2 * Math.atan2(q.z, q.w); // cards only turn about z in the hand
+        expect(lowestOf(g, id, { y: body.translation().y, angle })).toBeGreaterThan(0);
+      }
+    }
+  }, 30000);
+});

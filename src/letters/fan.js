@@ -27,6 +27,18 @@ export function handLayout({ advances, rows, center, ...fan }) {
   return [...back, ...front];
 }
 
+// Lifts the whole hand, if needed, so no card dips under the floor (y = 0):
+// each card's lowest point is found from its outline, turned by its lean in
+// the fan, and the hand rises until the lowest of them clears by `clearance`.
+//   poses: [{ x, y, z, angle }]; outlines: per pose, [{ x, y }] centred on the card.
+export function liftAboveFloor(poses, outlines, clearance) {
+  const lowest = Math.min(
+    ...poses.map((p, i) => p.y + Math.min(...outlines[i].map((q) => q.x * Math.sin(p.angle) + q.y * Math.cos(p.angle)))),
+  );
+  const lift = Math.max(0, clearance - lowest);
+  return poses.map((p) => ({ ...p, y: p.y + lift }));
+}
+
 export function fanLayout({ advances, wordStarts = [], center, radius, overlap, wordGap = 0, layerStep, sag = 1, maxSpan = Infinity }) {
   // Arc length position of each card centre.
   const s = [0];

@@ -120,6 +120,7 @@ export const FAN = {
   // letters show between the front row's.
   rows: { min: 8, rise: 0.62, back: 0.3, stagger: 0.42, overlap: 0.86 },
   layerStep: 0.04, // later cards sit slightly in front, like a held hand
+  floorClearance: 0.03, // the hand's lowest point stays this far above the floor
   breatheAmplitude: 0.012, // idle breathing, units
   breatheRotation: 0.006, // radians
   breathePeriod: 4.5, // seconds

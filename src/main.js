@@ -49,11 +49,6 @@ async function main() {
     window.aop = { game, physics, view, flick, smoke: createSmoke({ game, view, flick }) };
   }
 
-  // Pause while the hero is scrolled out of view: no physics, no drawing.
-  let onStage = true;
-  new IntersectionObserver(([entry]) => {
-    onStage = entry.isIntersecting;
-  }).observe(document.getElementById('hero'));
 
   const fade = document.getElementById('fade');
   const hooks = { beforeStep: game.beforeStep, afterStep: game.afterStep };
@@ -62,10 +57,6 @@ async function main() {
   // logged and the piece keeps running instead of freezing.
   function frame(now) {
     requestAnimationFrame(frame);
-    if (!onStage) {
-      last = now;
-      return;
-    }
     dev?.begin();
     try {
       const frameSeconds = Math.min((now - last) / 1000, 0.25);

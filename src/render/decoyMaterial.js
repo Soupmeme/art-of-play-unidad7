@@ -17,7 +17,7 @@ export function createDecoyMaterials({ face, edge, seed }) {
     uErosion: { value: 0 },
     uSeed: { value: seed },
   };
-  // Chained after the card's own patch (face and back textures).
+  // Chained after any patch the card material already has.
   const patch = (material) => {
     const cardPatch = material.onBeforeCompile;
     material.onBeforeCompile = (shader, renderer) => {
